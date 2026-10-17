@@ -76,10 +76,10 @@ http.createServer(async (req, res) => {
   const STATIC = {
     "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json"],
     "/sw.js": ["sw.js", "text/javascript; charset=utf-8"],
-    "/icons/icon-192.png": ["icons/icon-192.png", "image/png"],
-    "/icons/icon-512.png": ["icons/icon-512.png", "image/png"],
-    "/icons/icon-maskable-512.png": ["icons/icon-maskable-512.png", "image/png"],
-    "/icons/apple-touch-icon.png": ["icons/apple-touch-icon.png", "image/png"],
+    "/icons/icon-192.png": ["icon-192.png", "image/png"],
+    "/icons/icon-512.png": ["icon-512.png", "image/png"],
+    "/icons/icon-maskable-512.png": ["icon-maskable-512.png", "image/png"],
+    "/icons/apple-touch-icon.png": ["apple-touch-icon.png", "image/png"],
   };
   const [file, type] = STATIC[req.url.split("?")[0]] || ["index.html", "text/html; charset=utf-8"];
   fs.readFile(path.join(__dirname, file), (err, buf) => {
