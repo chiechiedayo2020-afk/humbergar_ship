@@ -1,0 +1,16 @@
+{
+  "name": "Burger Order ハンバーガー注文アプリ",
+  "short_name": "Burger Order",
+  "description": "海外のハンバーガー屋で英語注文を練習するアプリ",
+  "lang": "ja",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff8ee",
+  "theme_color": "#d9381e",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

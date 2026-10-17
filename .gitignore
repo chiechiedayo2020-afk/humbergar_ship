@@ -1,0 +1,4 @@
+node_modules/
+conversations/
+.env
+.DS_Store
