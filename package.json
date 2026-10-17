@@ -1,0 +1,8 @@
+{
+  "name": "burger-order",
+  "version": "1.0.0",
+  "private": true,
+  "description": "海外のハンバーガー屋で英語注文を練習するWebアプリ",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}

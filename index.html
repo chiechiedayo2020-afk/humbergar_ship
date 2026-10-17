@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Burger Order</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#d9381e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Burger Order">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<style>
+  :root{--bg:#fff8ee;--card:#fff;--ink:#2b2118;--sub:#7a6a5a;--accent:#d9381e;--accent2:#f5a623;--line:#ecdcc6}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans",sans-serif;padding-bottom:110px}
+  header{background:var(--accent);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5}
+  header h1{margin:0;font-size:18px}
+  nav{display:flex;gap:6px;margin-top:10px}
+  nav button{flex:1;padding:8px 2px;border:0;border-radius:8px;background:rgba(255,255,255,.2);color:#fff;font-size:13px;font-weight:600}
+  nav button.on{background:#fff;color:var(--accent)}
+  main{max-width:560px;margin:0 auto;padding:16px}
+  section{display:none}section.on{display:block}
+  h2{font-size:15px;margin:20px 0 8px;color:var(--sub)}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+  .item .emo{font-size:30px}
+  .item .t{flex:1}
+  .item .en{font-weight:700}
+  .item .ja{font-size:12px;color:var(--sub)}
+  .item .price{font-size:13px;color:var(--sub)}
+  .mission{background:#fff3d6;border:2px solid var(--accent2);border-radius:14px;padding:14px;font-size:15px;line-height:1.7}
+  .mission .mt{font-weight:700;color:var(--accent);margin-bottom:4px}
+  .mission b{color:var(--accent);font-size:17px}
+  .judge{border-radius:12px;padding:12px 14px;margin:10px 0 0;font-size:14px;line-height:1.6;border:2px solid}
+  .judge b{font-size:16px}
+  .judge.ok{background:#e7f6ec;border-color:#1a9e4a;color:#126b32}
+  .judge.ng{background:#fde8e4;border-color:var(--accent);color:#a02612}
+  .judge.wait{background:#fff;border-color:var(--line);color:var(--sub)}
+  .install{display:none;margin:0 0 12px}
+  .item .sub{font-size:14px;font-weight:700;color:var(--accent);margin-top:2px}
+  .item.ordered{border-color:var(--accent);background:#fff3ee}
+  .bar .sum b{display:block;font-size:20px;color:var(--accent)}
+  .bill{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px}
+  .bill div{display:flex;justify-content:space-between;padding:3px 0}
+  .bill .tot{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;font-weight:700;font-size:17px;color:var(--accent)}
+  .qty{display:flex;align-items:center;gap:8px}
+  .qty button{width:32px;height:32px;border-radius:50%;border:1px solid var(--accent);background:#fff;color:var(--accent);font-size:18px;font-weight:700}
+  .qty span{min-width:16px;text-align:center;font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:8px 12px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:14px}
+  .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .chip small{display:block;font-size:10px;opacity:.7}
+  .bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center}
+  .bar .sum{flex:1;font-size:13px;color:var(--sub)}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:700;font-size:15px}
+  .btn.alt{background:var(--accent2);color:#2b2118}
+  .btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .say{background:#fff;border:2px solid var(--accent);border-radius:14px;padding:16px;margin-bottom:12px}
+  .say .en{font-size:20px;font-weight:700;line-height:1.5}
+  .say .ja{font-size:13px;color:var(--sub);margin-top:6px}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .show{position:fixed;inset:0;background:#fff;z-index:20;padding:24px;display:none;flex-direction:column}
+  .show.on{display:flex}
+  .show h3{margin:0 0 12px;color:var(--accent);font-size:16px}
+  .show ul{font-size:26px;font-weight:700;line-height:1.6;padding-left:22px;flex:1;overflow:auto}
+  .show li small{display:block;font-size:14px;color:var(--sub);font-weight:400}
+  .qa{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+  .qa .q{font-weight:700}
+  .qa .qj{font-size:12px;color:var(--sub);margin-bottom:8px}
+  .qa .a{display:flex;gap:6px;flex-wrap:wrap}
+  .a button{border:1px solid var(--line);background:#fffaf2;border-radius:8px;padding:8px 10px;font-size:14px;text-align:left}
+  .a button small{display:block;font-size:10px;color:var(--sub)}
+  .empty{color:var(--sub);text-align:center;padding:30px 0}
+  textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍔 Burger Order <small style="font-weight:400;opacity:.85">ハンバーガー注文アプリ</small></h1>
+  <nav>
+    <button data-tab="menu" class="on">① メニュー</button>
+    <button data-tab="custom">② 好み</button>
+    <button data-tab="say">③ 注文する</button>
+    <button data-tab="talk">④ 会話集</button>
+    <button data-tab="voice">⑤ 🎤練習</button>
+  </nav>
+</header>
+<main>
+
+<section id="menu" class="on">
+  <div class="mission">
+    <div class="mt">🎒 ミッション</div>
+    あなたは、修学旅行でアメリカに来ています。自分を含めて３人の昼食を買うことになり、先生から<b>５０ドル</b>を渡されました。予算の範囲内でグループ３人分の昼食を買ってください。
+    <div id="judge"></div>
+  </div>
+  <button class="btn install" id="install">📲 このアプリをインストール</button>
+  <h2>BURGERS ハンバーガー</h2><div id="l-burger"></div>
+  <h2>SIDES サイド</h2><div id="l-side"></div>
+  <h2>DRINKS ドリンク</h2><div id="l-drink"></div>
+</section>
+
+<section id="custom">
+  <h2>SIZE (セット/ドリンクのサイズ)</h2><div class="chips" id="c-size"></div>
+  <h2>MAKE IT A COMBO? セットにする？</h2><div class="chips" id="c-combo"></div>
+  <h2>CUSTOMIZE バーガーの好み(全バーガー共通)</h2><div class="chips" id="c-mods"></div>
+  <h2>COOKING 焼き加減</h2><div class="chips" id="c-cook"></div>
+  <h2>FOR HERE / TO GO 店内 or 持ち帰り</h2><div class="chips" id="c-place"></div>
+  <h2>ALLERGY アレルギー</h2><div class="chips" id="c-allergy"></div>
+</section>
+
+<section id="say">
+  <div id="out"></div>
+</section>
+
+<section id="talk">
+  <p style="font-size:13px;color:var(--sub)">店員さんがよく聞く質問と返事の例。タップで発音が聞けます。</p>
+  <div id="qa"></div>
+  <h2>自由に英訳して読み上げ(英語を入力)</h2>
+  <textarea id="free" rows="2" placeholder="e.g. Could I get some extra napkins?"></textarea>
+  <div class="row"><button class="btn ghost" id="freeSpeak">🔊 読み上げ</button></div>
+  <h2>便利フレーズ</h2><div id="useful"></div>
+</section>
+<section id="voice">
+  <p style="font-size:13px;color:var(--sub)">AIの店員さんと声で注文の練習。マイクを押して英語で話すと、店員が声で返事します。<br>（①②で選んだ注文内容を、練習のお題にします）</p>
+  <div class="row" style="margin:0 0 12px">
+    <button class="btn" id="vStart">▶ 練習スタート</button>
+    <button class="btn alt" id="vEnd">終了して保存</button>
+    <button class="btn ghost" id="vReset">やり直し</button>
+  </div>
+  <div id="vLog"></div>
+  <div id="vStatus" style="text-align:center;color:var(--sub);font-size:13px;margin:8px 0"></div>
+  <div style="text-align:center">
+    <button class="btn" id="vMic" style="width:84px;height:84px;border-radius:50%;font-size:32px" disabled>🎤</button>
+    <div style="font-size:12px;color:var(--sub);margin-top:6px">押して話す／終わると自動で送信</div>
+  </div>
+  <label style="display:block;text-align:center;margin-top:12px;font-size:13px"><input type="checkbox" id="vAuto" checked> 返事のあと自動でマイクをオン</label>
+</section>
+</main>
+
+<div class="bar">
+  <div class="sum" id="sum">カートは空です</div>
+  <button class="btn" id="goSay">注文文を作る →</button>
+</div>
+
+<div class="show" id="show">
+  <h3>Hello! I'd like to order, please.</h3>
+  <ul id="showList"></ul>
+  <button class="btn" id="closeShow">閉じる</button>
+</div>
+
+<script>
+const MENU = {
+  burger:[
+    {id:"cheese",en:"Cheeseburger",ja:"チーズバーガー",p:6.5,e:"🍔"},
+    {id:"ham",en:"Hamburger",ja:"ハンバーガー",p:5.5,e:"🍔"},
+    {id:"double",en:"Double Cheeseburger",ja:"ダブルチーズバーガー",p:8.5,e:"🍔"},
+    {id:"bacon",en:"Bacon Cheeseburger",ja:"ベーコンチーズバーガー",p:8,e:"🥓"},
+    {id:"chicken",en:"Chicken Sandwich",ja:"チキンサンド",p:7,e:"🐔"},
+    {id:"veggie",en:"Veggie Burger",ja:"ベジタリアンバーガー",p:7.5,e:"🥬"},
+  ],
+  side:[
+    {id:"fries",en:"French Fries",ja:"フライドポテト",p:3,e:"🍟"},
+    {id:"rings",en:"Onion Rings",ja:"オニオンリング",p:3.5,e:"🧅"},
+    {id:"nuggets",en:"Chicken Nuggets",ja:"チキンナゲット",p:4.5,e:"🍗"},
+    {id:"salad",en:"Side Salad",ja:"サイドサラダ",p:3.5,e:"🥗"},
+  ],
+  drink:[
+    {id:"cola",en:"Coke",ja:"コーラ",p:2.5,e:"🥤"},
+    {id:"sprite",en:"Sprite",ja:"スプライト",p:2.5,e:"🥤"},
+    {id:"water",en:"Water",ja:"水",p:1.5,e:"💧"},
+    {id:"shake",en:"Vanilla Shake",ja:"バニラシェイク",p:4.5,e:"🍦"},
+    {id:"coffee",en:"Coffee",ja:"コーヒー",p:2.5,e:"☕"},
+  ]
+};
+const ALL = Object.values(MENU).flat();
+const SIZES=[["small","Small","S"],["medium","Medium","M"],["large","Large","L"]];
+const MODS=[
+  ["no pickles","ピクルス抜き"],["no onions","玉ねぎ抜き"],["no tomato","トマト抜き"],
+  ["no mayo","マヨネーズ抜き"],["no cheese","チーズ抜き"],["extra cheese","チーズ追加"],
+  ["extra pickles","ピクルス多め"],["sauce on the side","ソース別添え"],["no ketchup","ケチャップ抜き"],
+  ["lettuce wrap","バンズの代わりにレタス"],
+];
+const COOK=[["","おまかせ"],["well done","ウェルダン"],["medium","ミディアム"]];
+const ALLERGY=[["","なし"],["a peanut allergy","ピーナッツ"],["a gluten allergy","グルテン"],["a dairy allergy","乳製品"],["an egg allergy","卵"]];
+
+const S={cart:{},size:"medium",combo:false,mods:new Set(),cook:"",place:"here",allergy:""};
+const $=s=>document.querySelector(s);
+
+// ---- speech
+function speak(t){
+  if(!window.speechSynthesis)return alert("このブラウザは音声再生に対応していません");
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(t);u.lang="en-US";u.rate=.85;speechSynthesis.speak(u);
+}
+
+// ---- tabs
+function tab(n){
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===n));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===n));
+  if(n==="say")renderSay();
+  scrollTo(0,0);
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+$("#goSay").onclick=()=>tab("say");
+
+// ---- menu
+function renderMenu(){
+  for(const k in MENU){
+    $("#l-"+k).innerHTML=MENU[k].map(i=>`
+      <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
+        <div class="t"><div class="en">${i.en}</div><div class="ja">${i.ja}</div><div class="price">$${i.p.toFixed(2)}</div>${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(i.p*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
+        <div class="qty"><button data-d="-1" data-id="${i.id}">−</button><span>${S.cart[i.id]||0}</span><button data-d="1" data-id="${i.id}">＋</button></div>
+      </div>`).join("");
+  }
+  document.querySelectorAll(".qty button").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.id,n=Math.max(0,(S.cart[id]||0)+ +b.dataset.d);
+    n?S.cart[id]=n:delete S.cart[id];renderMenu();renderSum();
+  });
+}
+// ---- mission: 予算$50で3人分の昼食(バーガー・ドリンクを人数分)
+const BUDGET=50,PEOPLE=3;
+function total(){return Object.entries(S.cart).reduce((a,[id,q])=>a+ALL.find(i=>i.id===id).p*q,0)}
+function judge(){
+  const cnt=k=>Object.entries(S.cart).reduce((a,[id,q])=>a+(MENU[k].some(i=>i.id===id)?q:0),0);
+  const b=cnt("burger"),d=cnt("drink"),t=total(),left=BUDGET-t;
+  if(!Object.keys(S.cart).length)return {cls:"wait",html:`まだ何も選んでいません。予算は <b>$${BUDGET}</b> です。`};
+  const lack=[];
+  if(b<PEOPLE)lack.push(`バーガーあと${PEOPLE-b}個`);
+  if(d<PEOPLE)lack.push(`ドリンクあと${PEOPLE-d}杯`);
+  if(left<0)return {cls:"ng",html:`<b>❌ 予算オーバー</b><br>合計 $${t.toFixed(2)}（$${(-left).toFixed(2)} 超過）。何か減らしましょう。`};
+  if(lack.length)return {cls:"wait",html:`<b>⏳ まだ3人分そろっていません</b><br>${lack.join("・")}が必要です。<br>残り予算 $${left.toFixed(2)}`};
+  const note=left<BUDGET*.1?"<br>⚠ 税金やチップを考えると、ぎりぎりかもしれません。":"";
+  return {cls:"ok",html:`<b>✅ ミッション成功！</b><br>3人分（バーガー${b}・ドリンク${d}）で $${t.toFixed(2)}。残り $${left.toFixed(2)}${note}`};
+}
+function judgeHTML(){const j=judge();return `<div class="judge ${j.cls}">${j.html}</div>`}
+function renderSum(){
+  const n=Object.values(S.cart).reduce((a,b)=>a+b,0);
+  const t=total();
+  $("#sum").innerHTML=n?`${n}点 ・ 税別<b>合計 $${t.toFixed(2)}</b><span style="font-size:12px">残り $${(BUDGET-t).toFixed(2)}</span>`:"カートは空です";
+  $("#judge").innerHTML=judgeHTML();
+}
+function billHTML(){
+  const rows=Object.entries(S.cart).map(([id,q])=>{const i=ALL.find(x=>x.id===id);return `<div><span>${i.ja} × ${q}</span><span>$${(i.p*q).toFixed(2)}</span></div>`}).join("");
+  const t=Object.entries(S.cart).reduce((a,[id,q])=>a+ALL.find(i=>i.id===id).p*q,0);
+  return `<div class="bill">${rows}<div class="tot"><span>合計(税別)</span><span>$${t.toFixed(2)}</span></div></div>`+judgeHTML();
+}
+
+// ---- chips
+function chips(el,items,isOn,onClick){
+  el.innerHTML=items.map((it,i)=>`<div class="chip ${isOn(it)?"on":""}" data-i="${i}">${it.label}${it.sub?`<small>${it.sub}</small>`:""}</div>`).join("");
+  el.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{onClick(items[c.dataset.i]);renderCustom()});
+}
+function renderCustom(){
+  chips($("#c-size"),SIZES.map(s=>({v:s[0],label:s[1],sub:s[2]})),i=>S.size===i.v,i=>S.size=i.v);
+  chips($("#c-combo"),[{v:true,label:"Yes, combo",sub:"セットにする"},{v:false,label:"No, just the burger",sub:"単品"}],i=>S.combo===i.v,i=>S.combo=i.v);
+  chips($("#c-mods"),MODS.map(m=>({v:m[0],label:m[0],sub:m[1]})),i=>S.mods.has(i.v),i=>S.mods.has(i.v)?S.mods.delete(i.v):S.mods.add(i.v));
+  chips($("#c-cook"),COOK.map(m=>({v:m[0],label:m[0]||"No preference",sub:m[1]})),i=>S.cook===i.v,i=>S.cook=i.v);
+  chips($("#c-place"),[{v:"here",label:"For here",sub:"店内"},{v:"go",label:"To go",sub:"持ち帰り"}],i=>S.place===i.v,i=>S.place=i.v);
+  chips($("#c-allergy"),ALLERGY.map(m=>({v:m[0],label:m[0]||"None",sub:m[1]})),i=>S.allergy===i.v,i=>S.allergy=i.v);
+}
+
+// ---- sentence building
+const NUM=["","a","two","three","four","five","six"];
+function nameQ(i,q){
+  if(q===1)return (/^[AEIOU]/i.test(i.en)?"an ":"a ")+i.en;
+  const plural=i.en.endsWith("s")||i.en==="Water"?i.en:i.en+"s";
+  return (NUM[q]||q)+" "+plural;
+}
+function build(){
+  const items=Object.entries(S.cart).map(([id,q])=>({i:ALL.find(x=>x.id===id),q}));
+  if(!items.length)return null;
+  const burgers=items.filter(x=>MENU.burger.includes(x.i));
+  const lines=[];            // {en, ja}
+  const parts=items.map(x=>nameQ(x.i,x.q));
+  const joined=parts.length>1?parts.slice(0,-1).join(", ")+" and "+parts.at(-1):parts[0];
+  let main=`Hello. Can I have ${joined}, please?`;
+  const jaItems=items.map(x=>`${x.i.ja}×${x.q}`).join("、");
+  lines.push({en:main,ja:`${jaItems} をください。`});
+  if(burgers.length&&S.combo)lines.push({en:`A combo, please. ${S.size[0].toUpperCase()+S.size.slice(1)} drink.`,ja:`セットにして、ドリンクは${{small:"S",medium:"M",large:"L"}[S.size]}サイズでお願いします。`});
+  else if(!S.combo&&items.some(x=>MENU.drink.includes(x.i)))lines.push({en:`${S.size[0].toUpperCase()+S.size.slice(1)} drink, please.`,ja:`ドリンクは${{small:"S",medium:"M",large:"L"}[S.size]}サイズで。`});
+  if(burgers.length&&S.mods.size){
+    const m=[...S.mods];
+    const jm=m.map(x=>MODS.find(y=>y[0]===x)[1]).join("、");
+    lines.push({en:`${m.map((x,i)=>i?x:x[0].toUpperCase()+x.slice(1)).join(", ")}, please.`,ja:`バーガーは、${jm}でお願いします。`});
+  }
+  if(burgers.length&&S.cook){
+    lines.push({en:`${S.cook[0].toUpperCase()+S.cook.slice(1)}, please.`,ja:`パティは${COOK.find(c=>c[0]===S.cook)[1]}でお願いします。`});
+  }
+  if(S.allergy)lines.push({en:`I have ${S.allergy}. Is this OK?`,ja:`${ALLERGY.find(a=>a[0]===S.allergy)[1]}アレルギーがあります。大丈夫ですか？`});
+  lines.push(S.place==="here"?{en:"For here, please.",ja:"店内で食べます。"}:{en:"To go, please.",ja:"持ち帰りです。"});
+  lines.push({en:"Card, OK?",ja:"カードで払えますか？"});
+  return {lines,items};
+}
+function renderSay(){
+  const b=build();
+  if(!b){$("#out").innerHTML='<div class="empty">まず「① メニュー」で注文したいものを選んでください</div>';return}
+  $("#out").innerHTML=billHTML()+b.lines.map((l,i)=>`
+    <div class="say"><div class="en">${l.en}</div><div class="ja">${l.ja}</div>
+      <div class="row"><button class="btn ghost" data-sp="${i}">🔊 聞く</button></div></div>`).join("")+
+    `<div class="row">
+      <button class="btn" id="spAll">🔊 全部続けて再生</button>
+      <button class="btn alt" id="showStaff">📱 店員さんに見せる</button>
+    </div>`;
+  document.querySelectorAll("[data-sp]").forEach(x=>x.onclick=()=>speak(b.lines[x.dataset.sp].en));
+  $("#spAll").onclick=()=>speak(b.lines.map(l=>l.en).join(" "));
+  $("#showStaff").onclick=()=>{
+    $("#showList").innerHTML=b.lines.map(l=>`<li>${l.en}</li>`).join("");
+    $("#show").classList.add("on");
+  };
+}
+$("#closeShow").onclick=()=>$("#show").classList.remove("on");
+
+// ---- talk
+const QA=[
+  {q:"What can I get for you?",j:"ご注文は？",a:[["Can I get a cheeseburger, please?","チーズバーガーをください"],["I'll have the number one, please.","1番をください"],["Just a moment, I'm still deciding.","まだ決めてます、少し待って"]]},
+  {q:"Would you like to make it a combo?",j:"セットにしますか？",a:[["Yes, please.","はい、お願いします"],["No, just the burger, thanks.","いえ、バーガーだけで"]]},
+  {q:"What size?",j:"サイズは？",a:[["Medium, please.","Mでお願いします"],["Large, please.","Lでお願いします"],["Small is fine.","Sで大丈夫です"]]},
+  {q:"What would you like to drink?",j:"お飲み物は？",a:[["A Coke, please.","コーラをお願いします"],["Just water, please.","水だけでお願いします"]]},
+  {q:"How would you like your burger cooked?",j:"焼き加減は？",a:[["Medium, please.","ミディアムで"],["Well done, please.","ウェルダンで"]]},
+  {q:"Anything else?",j:"他にご注文は？",a:[["That's all, thank you.","以上です"],["Could I also get some fries?","ポテトもお願いします"]]},
+  {q:"For here or to go?",j:"店内ですか、お持ち帰りですか？",a:[["For here, please.","店内で"],["To go, please.","持ち帰りで"]]},
+  {q:"Would you like any sauces?",j:"ソースはいりますか？",a:[["Ketchup, please.","ケチャップください"],["No, thank you.","いりません"]]},
+  {q:"Can I get a name for the order?",j:"お名前をお願いします",a:[["It's Taro. T-A-R-O.","タロウです。T-A-R-O"],["Could you call my number instead?","番号で呼んでもらえますか？"]]},
+  {q:"That'll be $15.50. Cash or card?",j:"15.5ドルです。現金ですかカードですか？",a:[["Card, please.","カードで"],["Cash, please.","現金で"]]},
+];
+const USEFUL=[
+  ["Could I get some extra napkins?","ナプキンをもう少しもらえますか？"],
+  ["Can I get a straw, please?","ストローをください"],
+  ["Could I have a cup for water?","水用のカップをもらえますか？"],
+  ["Sorry, could you say that again?","すみません、もう一度言ってもらえますか？"],
+  ["Could you speak a little slower, please?","もう少しゆっくり話してもらえますか？"],
+  ["I think my order is wrong.","注文が違うようです"],
+  ["Where is the restroom?","トイレはどこですか？"],
+  ["Is this spicy?","これは辛いですか？"],
+  ["Can I get a refill?","おかわりできますか？"],
+  ["Thank you! Have a nice day!","ありがとう！良い一日を！"],
+];
+function renderTalk(){
+  $("#qa").innerHTML=QA.map((x,i)=>`
+    <div class="qa"><div class="q">🧑‍🍳 ${x.q} <button class="chip" data-q="${i}" style="padding:2px 8px">🔊</button></div>
+    <div class="qj">${x.j}</div>
+    <div class="a">${x.a.map((a,k)=>`<button data-a="${i}-${k}">${a[0]}<small>${a[1]}</small></button>`).join("")}</div></div>`).join("");
+  document.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>speak(QA[b.dataset.q].q));
+  document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const[i,k]=b.dataset.a.split("-");speak(QA[i].a[k][0])});
+  $("#useful").innerHTML=USEFUL.map((u,i)=>`<div class="qa"><div class="a"><button data-u="${i}" style="width:100%">${u[0]}<small>${u[1]}</small></button></div></div>`).join("");
+  document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>speak(USEFUL[b.dataset.u][0]));
+}
+$("#freeSpeak").onclick=()=>$("#free").value.trim()&&speak($("#free").value);
+
+// ---- voice roleplay (speech-to-speech: 音声認識 → Claude API → 音声合成)
+const V={msgs:[],on:false,rec:null,busy:false,log:[]};
+const toB64=b=>new Promise(res=>{const f=new FileReader();f.onload=()=>res(f.result.split(",")[1]);f.readAsDataURL(b)});
+async function vSave(){
+  if(!V.log.length)return vStatus("保存する会話がありません");
+  await new Promise(r=>setTimeout(r,300)); // 録音の停止処理を待つ
+  const audio=[];let n=0;
+  for(const l of V.log){
+    if(l.who==="you"&&l.audio&&l.audio.blob&&l.audio.blob.size){
+      const ext=l.audio.blob.type.includes("mp4")?"m4a":l.audio.blob.type.includes("ogg")?"ogg":"webm";
+      l.file=`turn-${String(++n).padStart(2,"0")}-you.${ext}`;
+      audio.push({name:l.file,b64:await toB64(l.audio.blob)});
+    }
+  }
+  const text=`Burger Order 会話ログ  ${new Date().toLocaleString("ja-JP")}\n`+"=".repeat(40)+"\n\n"+
+    V.log.map(l=>l.who==="you"
+      ?`[You]    ${l.en}`+(l.file?`\n         🎙 ${l.file}`:"")
+      :`[Clerk]  ${l.en}\n         ${l.ja||""}`+(l.fb?`\n         💡 ${l.fb}`:"")).join("\n\n")+"\n";
+  try{
+    const r=await fetch("/api/save",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text,audio})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error);
+    vStatus(`💾 保存しました: ${d.file}（あなたの音声 ${d.audio}件）`);
+  }catch(e){ // サーバー保存に失敗したらブラウザのダウンロードで代替
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));
+    a.download="conversation.txt";a.click();vStatus("💾 ダウンロードしました（サーバー保存失敗: "+e.message+"）");
+  }
+}
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function vLog(cls,html){$("#vLog").insertAdjacentHTML("beforeend",html);scrollTo(0,document.body.scrollHeight)}
+function vStatus(t){$("#vStatus").textContent=t}
+function speakP(t){
+  return new Promise(res=>{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(t);u.lang="en-US";u.rate=.8;
+    u.onend=u.onerror=res;speechSynthesis.speak(u);
+  });
+}
+function orderHint(){
+  const b=Object.entries(S.cart).map(([id,q])=>`${q} x ${ALL.find(i=>i.id===id).en}`).join(", ");
+  return b?`${b}; size ${S.size}; ${S.combo?"combo":"no combo"}; ${S.place==="here"?"for here":"to go"}`:"";
+}
+async function vTurn(userText,audio){
+  V.busy=true;$("#vMic").disabled=true;vStatus("店員が考え中…");
+  if(userText){
+    V.msgs.push({role:"user",content:userText});V.log.push({who:"you",en:userText,audio});
+    vLog("",`<div class="say" style="border-color:var(--accent2)"><div class="ja">あなた</div><div class="en" style="font-size:16px">${userText}</div></div>`);
+  }
+  try{
+    const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({messages:V.msgs.length?V.msgs:[{role:"user",content:"(The customer walks up to the counter.)"}],order_hint:orderHint()})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error);
+    if(!V.msgs.length)V.msgs.push({role:"user",content:"(The customer walks up to the counter.)"});
+    V.msgs.push({role:"assistant",content:JSON.stringify(d)});
+    V.log.push({who:"clerk",en:d.reply,ja:d.reply_ja,fb:d.feedback_ja});
+    vLog("",`<div class="say"><div class="ja">🧑‍🍳 店員</div><div class="en" style="font-size:17px">${d.reply}</div><div class="ja">${d.reply_ja||""}</div>${d.feedback_ja?`<div class="ja" style="color:var(--accent);margin-top:6px">💡 ${d.feedback_ja}</div>`:""}</div>`);
+    vStatus("店員が話しています…");
+    await speakP(d.reply);
+    if(d.done){V.on=false;V.busy=false;$("#vMic").disabled=true;await vSave();return}
+    V.busy=false;$("#vMic").disabled=false;vStatus("あなたの番です 🎤");
+    if($("#vAuto").checked)listen();
+  }catch(e){V.busy=false;$("#vMic").disabled=false;vStatus("エラー: "+e.message)}
+}
+function listen(){
+  if(!SR){vStatus("このブラウザは音声認識に未対応です（Chrome / Safari を使用）");return}
+  if(V.rec||V.busy)return;
+  const rec=V.rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;
+  let got=false;
+  // 音声認識と並行して、あなたの声をMediaRecorderで録音する
+  const clip={blob:null};let mr=null,chunks=[];
+  if(V.stream&&window.MediaRecorder){
+    try{
+      mr=new MediaRecorder(V.stream);
+      mr.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+      mr.onstop=()=>{clip.blob=new Blob(chunks,{type:mr.mimeType})};
+      mr.start();
+    }catch(_){mr=null}
+  }
+  rec.onstart=()=>{vStatus("🎙 聞いています…英語で話してください");$("#vMic").style.background="#1a9e4a"};
+  rec.onresult=e=>{got=true;vTurn(e.results[0][0].transcript,clip)};
+  rec.onerror=e=>{vStatus(e.error==="not-allowed"?"マイクの使用を許可してください":"うまく聞き取れませんでした。もう一度🎤")};
+  rec.onend=()=>{if(mr&&mr.state!=="inactive")mr.stop();V.rec=null;$("#vMic").style.background="";if(!got&&!V.busy)vStatus("もう一度🎤を押して話してください")};
+  rec.start();
+}
+$("#vEnd").onclick=async()=>{speechSynthesis.cancel();V.rec&&V.rec.abort();V.on=false;$("#vMic").disabled=true;await vSave()};
+$("#vStart").onclick=async()=>{
+  V.msgs=[];V.log=[];$("#vLog").innerHTML="";V.on=true;
+  if(!V.stream){ // 録音用にマイクを一度だけ取得
+    try{V.stream=await navigator.mediaDevices.getUserMedia({audio:true})}
+    catch(_){vStatus("マイクが使えないため、音声の保存はできません（文字だけ保存）")}
+  }
+  vTurn("");
+};
+$("#vReset").onclick=()=>{speechSynthesis.cancel();V.rec&&V.rec.abort();V.msgs=[];V.log=[];V.busy=false;V.on=false;$("#vLog").innerHTML="";$("#vMic").disabled=true;vStatus("")};
+$("#vMic").onclick=()=>{speechSynthesis.cancel();V.rec?V.rec.stop():listen()};
+
+// ---- PWA
+if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
+let deferredInstall=null;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("#install").style.display="block"});
+$("#install").onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$("#install").style.display="none"};
+addEventListener("appinstalled",()=>{$("#install").style.display="none"});
+
+renderMenu();renderSum();renderCustom();renderTalk();
+</script>
+</body>
+</html>
