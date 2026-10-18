@@ -259,7 +259,7 @@ const sizeOf=id=>S.sizes[id]||"medium";
 const unit=i=>i.p+(isSized(i)?SZ.find(z=>z[0]===sizeOf(i.id))[3]:0);
 
 // ---- speech
-const SPEEDS={slow:{label:"🐢 ゆっくり",r:.6},normal:{label:"普通",r:.85},fast:{label:"🐇 早い",r:1.2}};
+const SPEEDS={slow:{label:"🐢 ゆっくり",r:.6},normal:{label:"普通",r:.85},fast:{label:"🐇 早い",r:1.1}};
 let SPEED="normal";
 try{const p=localStorage.getItem("speed");if(SPEEDS[p])SPEED=p}catch(e){}
 function speedHTML(){
@@ -282,19 +282,19 @@ function speak(t,o={}){
 }
 // 端末の英語音声から、男性/女性らしい声を選ぶ(なければ高さで調整)
 const FEM=/samantha|ava|allison|susan|victoria|karen|moira|tessa|zira|jenny|aria|female|serena|nicky|joanna|kendra|kimberly|salli/i;
-const MALE=/alex|tom|fred|aaron|daniel|david|mark|guy|ryan|male|evan|nathan|gordon|matthew|joey/i;
+const MALE=/alex|tom|fred|aaron|daniel|david|mark|guy|ryan|evan|nathan|gordon|matthew|joey|\bmale\b/i;
 function pickVoice(g){
   const vs=(speechSynthesis.getVoices()||[]).filter(v=>/^en/i.test(v.lang));
   const us=vs.filter(v=>/en[-_]US/i.test(v.lang));
-  const re=g==="f"?FEM:MALE;
-  return us.find(v=>re.test(v.name))||vs.find(v=>re.test(v.name))||null;
+  const ok=v=>g==="f"?FEM.test(v.name):MALE.test(v.name)&&!/female/i.test(v.name);
+  return us.find(ok)||vs.find(ok)||null;
 }
 if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{};
 // ---- 店員のキャラクター
 const PERSONAS={
-  bright:{label:"😊 明るい若い女性",gender:"f",pitch:1.3,rate:1.1},
-  polite:{label:"🎩 丁寧な男性",gender:"m",pitch:.9,rate:.92},
-  rude:{label:"😒 態度の悪い店員",gender:"m",pitch:.7,rate:1.15},
+  bright:{label:"😊 明るい若い女性",gender:"f",pitch:1.12,rate:1.05},
+  polite:{label:"🎩 丁寧な男性",gender:"m",pitch:.95,rate:.95},
+  rude:{label:"😒 態度の悪い店員",gender:"m",pitch:.85,rate:1.1},
 };
 let PERSONA="bright";
 try{const p=localStorage.getItem("persona");if(PERSONAS[p])PERSONA=p}catch(e){}
@@ -389,7 +389,7 @@ function renderMenu(){
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
-        <div class="t"><div class="en">${k==="side"?"":k==="topping"?i.ja:i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${unit(i).toFixed(2)}</div>${isSized(i)?`<div class="szs">${SZ.map(z=>`<button class="sz ${sizeOf(i.id)===z[0]?"on":""}" data-sz="${i.id}|${z[0]}">${z[1]}<small>$${(i.p+z[3]).toFixed(2)}</small></button>`).join("")}</div>`:""}${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(unit(i)*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
+        <div class="t"><div class="en">${k==="side"||k==="topping"?"":i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${unit(i).toFixed(2)}</div>${isSized(i)?`<div class="szs">${SZ.map(z=>`<button class="sz ${sizeOf(i.id)===z[0]?"on":""}" data-sz="${i.id}|${z[0]}">${z[1]}<small>$${(i.p+z[3]).toFixed(2)}</small></button>`).join("")}</div>`:""}${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(unit(i)*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
         <div class="qty"><label class="ck"><input type="checkbox" data-ck="${i.id}" ${S.cart[i.id]?"checked":""}> 注文</label>${S.cart[i.id]?`<button data-d="-1" data-id="${i.id}">−</button><span>${S.cart[i.id]}</span><button data-d="1" data-id="${i.id}">＋</button>`:""}</div>
       </div>`).join("");
   }
@@ -566,7 +566,7 @@ function renderWords(){
 
 // ---- voice roleplay (本物のspeech-to-speech: OpenAI Realtime API / WebRTC)
 const V={pc:null,dc:null,mic:null,audio:null,order:[],items:{},recs:{},chunks:{},on:false};
-const SPEED_RT={slow:.75,normal:1,fast:1.3};
+const SPEED_RT={slow:.8,normal:1,fast:1.2};
 const toB64=b=>new Promise(res=>{const f=new FileReader();f.onload=()=>res(f.result.split(",")[1]);f.readAsDataURL(b)});
 function vStatus(t){$("#vStatus").textContent=t}
 // 会話中は文字を出さない。終了後(V.show)にまとめて表示する
