@@ -51,6 +51,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{padding:8px 12px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:14px}
   .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .cs{display:inline-block;padding:0 4px;margin-left:2px;border-radius:6px;background:rgba(0,0,0,.06);font-size:12px;cursor:pointer}
   .chip small{display:block;font-size:10px;opacity:.7}
   .bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center}
   .bar .sum{flex:1;font-size:13px;color:var(--sub)}
@@ -285,8 +286,9 @@ function billHTML(){
 
 // ---- chips
 function chips(el,items,isOn,onClick){
-  el.innerHTML=items.map((it,i)=>`<div class="chip ${isOn(it)?"on":""}" data-i="${i}">${it.label}${it.sub?`<small>${it.sub}</small>`:""}</div>`).join("");
+  el.innerHTML=items.map((it,i)=>`<div class="chip ${isOn(it)?"on":""}" data-i="${i}">${it.label} <span class="cs" data-s="${i}" role="button" aria-label="発音">🔊</span>${it.sub?`<small>${it.sub}</small>`:""}</div>`).join("");
   el.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{onClick(items[c.dataset.i]);renderCustom()});
+  el.querySelectorAll(".cs").forEach(b=>b.onclick=e=>{e.stopPropagation();speak(items[b.dataset.s].label)});
 }
 function renderCustom(){
   chips($("#c-size"),SIZES.map(s=>({v:s[0],label:s[1],sub:s[2]})),i=>S.size===i.v,i=>S.size=i.v);
@@ -433,9 +435,9 @@ function renderWords(){
   document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{const[g,w]=b.dataset.w.split("-");speak(WORDS[g][1][w][0])});
   $("#dlgList").innerHTML=DLG.map((d,di)=>`<div class="dlg"><h3>${d.t}</h3>${d.l.map((x,li)=>`
     <div class="ln ${x[0]==="y"?"you":""}"><div class="who">${x[0]==="c"?"🧑‍🍳":"🙋"}</div>
-    <div class="tx"><b>${x[1]}</b><small>${x[2]}</small></div><button data-d="${di}-${li}">🔊</button></div>`).join("")}
+    <div class="tx"><b>${x[1]}</b><small>${x[2]}</small></div><button data-dl="${di}-${li}">🔊</button></div>`).join("")}
     <div class="row"><button class="btn ghost" data-all="${di}">🔊 最初から続けて再生</button></div></div>`).join("");
-  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{const[d,l]=b.dataset.d.split("-");speak(DLG[d].l[l][1])});
+  document.querySelectorAll("[data-dl]").forEach(b=>b.onclick=()=>{const[d,l]=b.dataset.dl.split("-");speak(DLG[d].l[l][1])});
   document.querySelectorAll("[data-all]").forEach(b=>b.onclick=()=>speak(DLG[b.dataset.all].l.map(x=>x[1]).join(" ")));
 }
 
