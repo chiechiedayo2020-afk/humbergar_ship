@@ -153,6 +153,7 @@
   <button class="btn install" id="install">📲 このアプリをインストール</button>
   <div class="cart" id="aiPanel" style="position:static;margin:14px 0"><div style="font-weight:700;margin-bottom:6px">🎤 AI店員と話す（speech-to-speech）</div>
   <p style="font-size:13px;color:var(--sub);margin-top:0">下のメニューを見ながら、AIの店員さんと英語で話そう。スタートすると店員が先に挨拶します。会話の文字は、終わってからまとめて表示します。</p>
+  <div id="settings" style="background:#fff8ee;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 12px"></div>
   <div class="row" style="margin:0 0 12px">
     <button class="btn" id="vStart">▶ 会話スタート</button>
     <button class="btn alt" id="vEnd">終了して保存</button>
@@ -187,8 +188,7 @@
 </section>
 
 <section id="words" class="on">
-  <div class="cart" id="settings" style="position:static;margin-bottom:12px"></div>
-  <p style="font-size:13px;color:var(--sub)">上の設定で、店員さんのタイプ・スピード・レベルを選べます。タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
+  <p style="font-size:13px;color:var(--sub)">タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
   <div id="wordList"></div>
   <h2 style="font-size:17px;color:var(--accent);margin-top:28px">好み（選ぶと、会話の注文に反映されます）</h2>
   <h2>MAKE IT A COMBO? セットにする？</h2><div class="chips" id="c-combo"></div>
@@ -367,7 +367,7 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>tab(b.dataset.t
 
 // ---- menu
 function renderSettings(){
-  $("#settings").innerHTML=`<div style="font-weight:700;margin-bottom:6px">⚙ 設定（会話練習・AI練習で使います）</div>
+  $("#settings").innerHTML=`<div style="font-weight:700;margin-bottom:6px">⚙ 会話の設定</div>
     <div class="ct">店員さんのタイプ</div><div class="chips" id="persona" style="margin-bottom:10px">`+
     Object.entries(PERSONAS).map(([k,p])=>`<div class="chip ${k===PERSONA?"on":""}" data-persona="${k}">${p.label}</div>`).join("")+`</div>`+
     speedHTML()+
