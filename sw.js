@@ -1,6 +1,6 @@
 // 画面本体はオフラインでも開けるようキャッシュ。/api/* は常にネットワーク。
-const CACHE = "burger-order-v1";
-const ASSETS = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"];
+const CACHE = "burger-order-v2";
+const ASSETS = ["./", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
@@ -18,6 +18,6 @@ self.addEventListener("fetch", e => {
       const copy = r.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy));
       return r;
-    }).catch(() => caches.match(e.request).then(r => r || caches.match("/")))
+    }).catch(() => caches.match(e.request).then(r => r || caches.match("./")))
   );
 });

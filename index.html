@@ -4,21 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Burger Order</title>
-<link rel="manifest" href="/manifest.webmanifest">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#d9381e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Burger Order">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
   :root{--bg:#fff8ee;--card:#fff;--ink:#2b2118;--sub:#7a6a5a;--accent:#d9381e;--accent2:#f5a623;--line:#ecdcc6}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans",sans-serif;padding-bottom:110px}
   header{background:var(--accent);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5}
   header h1{margin:0;font-size:18px}
-  nav{display:flex;gap:6px;margin-top:10px}
-  nav button{flex:1;padding:8px 2px;border:0;border-radius:8px;background:rgba(255,255,255,.2);color:#fff;font-size:13px;font-weight:600}
+  nav{display:flex;gap:4px;margin-top:10px}
+  nav button{flex:1;padding:8px 1px;border:0;border-radius:8px;background:rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:600}
   nav button.on{background:#fff;color:var(--accent)}
   main{max-width:560px;margin:0 auto;padding:16px}
   section{display:none}section.on{display:block}
@@ -27,6 +27,7 @@
   .item .emo{font-size:30px}
   .item .t{flex:1}
   .item .en{font-weight:700}
+  .spk{border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:8px;padding:2px 8px;font-size:14px;margin-left:4px;cursor:pointer}
   .item .ja{font-size:12px;color:var(--sub)}
   .item .price{font-size:13px;color:var(--sub)}
   .mission{background:#fff3d6;border:2px solid var(--accent2);border-radius:14px;padding:14px;font-size:15px;line-height:1.7}
@@ -72,6 +73,33 @@
   .a button{border:1px solid var(--line);background:#fffaf2;border-radius:8px;padding:8px 10px;font-size:14px;text-align:left}
   .a button small{display:block;font-size:10px;color:var(--sub)}
   .empty{color:var(--sub);text-align:center;padding:30px 0}
+  .wd{display:flex;flex-wrap:wrap;gap:8px}
+  .wd button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;font-size:15px;font-weight:700;text-align:left;color:var(--ink)}
+  .wd button small{display:block;font-size:11px;font-weight:400;color:var(--sub)}
+  .dlg{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+  .dlg h3{margin:0 0 8px;font-size:14px;color:var(--accent)}
+  .ln{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--line)}
+  .ln:first-of-type{border-top:0}
+  .ln .who{font-size:20px}
+  .ln .tx{flex:1}
+  .ln .tx b{font-size:15px}
+  .ln .tx small{display:block;color:var(--sub);font-size:12px}
+  .ln.you{background:#fff8ee;border-radius:8px;padding-left:6px}
+  .ln button{border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:8px;padding:6px 10px}
+  @media(min-width:900px){
+    main{max-width:1000px;padding:24px}
+    header{padding:14px max(16px,calc((100vw - 1000px)/2 + 24px))}
+    nav{max-width:760px}
+    nav button{font-size:14px;padding:10px 4px;cursor:pointer}
+    #l-burger,#l-side,#l-drink,#dlgList{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-items:start}
+    #l-burger .item,#l-side .item,#l-drink .item{margin-bottom:0}
+    .dlg{margin-bottom:0}
+    #qa{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;align-items:start}
+    #out,#voice,#custom,#talk>p,#useful{max-width:720px}
+    .bar{padding:10px max(16px,calc((100vw - 1000px)/2 + 24px))}
+    button,.chip{cursor:pointer}
+    .item:hover,.wd button:hover,.a button:hover{border-color:var(--accent)}
+  }
   textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px}
 </style>
 </head>
@@ -84,6 +112,7 @@
     <button data-tab="say">③ 注文する</button>
     <button data-tab="talk">④ 会話集</button>
     <button data-tab="voice">⑤ 🎤練習</button>
+    <button data-tab="words">⑥ 📖単語</button>
   </nav>
 </header>
 <main>
@@ -95,9 +124,9 @@
     <div id="judge"></div>
   </div>
   <button class="btn install" id="install">📲 このアプリをインストール</button>
-  <h2>BURGERS ハンバーガー</h2><div id="l-burger"></div>
-  <h2>SIDES サイド</h2><div id="l-side"></div>
-  <h2>DRINKS ドリンク</h2><div id="l-drink"></div>
+  <h2>BURGERS</h2><div id="l-burger"></div>
+  <h2>SIDES</h2><div id="l-side"></div>
+  <h2>DRINKS</h2><div id="l-drink"></div>
 </section>
 
 <section id="custom">
@@ -135,6 +164,13 @@
     <div style="font-size:12px;color:var(--sub);margin-top:6px">押して話す／終わると自動で送信</div>
   </div>
   <label style="display:block;text-align:center;margin-top:12px;font-size:13px"><input type="checkbox" id="vAuto" checked> 返事のあと自動でマイクをオン</label>
+</section>
+<section id="words">
+  <p style="font-size:13px;color:var(--sub)">タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
+  <label style="font-size:13px"><input type="checkbox" id="slow"> ゆっくり再生</label>
+  <div id="wordList"></div>
+  <h2>簡単な会話リスト</h2>
+  <div id="dlgList"></div>
 </section>
 </main>
 
@@ -191,7 +227,7 @@ const $=s=>document.querySelector(s);
 function speak(t){
   if(!window.speechSynthesis)return alert("このブラウザは音声再生に対応していません");
   speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(t);u.lang="en-US";u.rate=.85;speechSynthesis.speak(u);
+  const u=new SpeechSynthesisUtterance(t);u.lang="en-US";u.rate=(document.getElementById("slow")||{}).checked?.6:.85;speechSynthesis.speak(u);
 }
 
 // ---- tabs
@@ -209,10 +245,11 @@ function renderMenu(){
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
-        <div class="t"><div class="en">${i.en}</div><div class="ja">${i.ja}</div><div class="price">$${i.p.toFixed(2)}</div>${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(i.p*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
+        <div class="t"><div class="en">${i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${i.p.toFixed(2)}</div>${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(i.p*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
         <div class="qty"><button data-d="-1" data-id="${i.id}">−</button><span>${S.cart[i.id]||0}</span><button data-d="1" data-id="${i.id}">＋</button></div>
       </div>`).join("");
   }
+  document.querySelectorAll(".spk").forEach(b=>b.onclick=()=>speak(ALL.find(i=>i.id===b.dataset.spk).en));
   document.querySelectorAll(".qty button").forEach(b=>b.onclick=()=>{
     const id=b.dataset.id,n=Math.max(0,(S.cart[id]||0)+ +b.dataset.d);
     n?S.cart[id]=n:delete S.cart[id];renderMenu();renderSum();
@@ -348,6 +385,60 @@ function renderTalk(){
 }
 $("#freeSpeak").onclick=()=>$("#free").value.trim()&&speak($("#free").value);
 
+// ---- words & simple dialogs (practice)
+const WORDS=[
+  ["バーガー",MENU.burger.map(i=>[i.en,i.ja])],
+  ["サイド",MENU.side.map(i=>[i.en,i.ja])],
+  ["ドリンク",MENU.drink.map(i=>[i.en,i.ja])],
+  ["サイズ",[["Small","小"],["Medium","中"],["Large","大"]]],
+  ["好み(抜く・足す)",MODS.map(m=>[m[0],m[1]])],
+  ["焼き加減",[["Medium","ミディアム"],["Well done","ウェルダン"]]],
+  ["お店で使う言葉",[["Combo","セット"],["For here","店内"],["To go","持ち帰り"],["Receipt","レシート"],["Napkin","ナプキン"],["Straw","ストロー"],["Ketchup","ケチャップ"],["Refill","おかわり"],["Cash","現金"],["Card","カード"],["Total","合計"],["Tax","税金"],["Tip","チップ"]]],
+  ["数字・金額",[["One dollar","1ドル"],["Five dollars","5ドル"],["Ten dollars","10ドル"],["Fifteen dollars","15ドル"],["Twenty dollars","20ドル"],["Fifty dollars","50ドル"],["Six fifty","6ドル50セント"]]],
+];
+const DLG=[
+  {t:"1. 注文する(いちばん基本)",l:[
+    ["c","Hi! What can I get for you?","いらっしゃい!ご注文は?"],
+    ["y","A cheeseburger, please.","チーズバーガーをください"],
+    ["c","Anything to drink?","お飲み物は?"],
+    ["y","A Coke, please.","コーラをください"],
+    ["c","Anything else?","他には?"],
+    ["y","That's all, thank you.","以上です"]]},
+  {t:"2. サイズとセット",l:[
+    ["c","Would you like to make it a combo?","セットにしますか?"],
+    ["y","Yes, please.","はい、お願いします"],
+    ["c","What size?","サイズは?"],
+    ["y","Medium, please.","Mでお願いします"]]},
+  {t:"3. 好みを伝える",l:[
+    ["c","Anything you want to change?","変えたいところはありますか?"],
+    ["y","No pickles, please.","ピクルス抜きでお願いします"],
+    ["c","Sure. How do you want it cooked?","わかりました。焼き加減は?"],
+    ["y","Well done, please.","ウェルダンでお願いします"]]},
+  {t:"4. 店内か持ち帰りか",l:[
+    ["c","For here or to go?","店内ですか、お持ち帰りですか?"],
+    ["y","For here, please.","店内でお願いします"]]},
+  {t:"5. お会計",l:[
+    ["c","That'll be fifteen dollars.","15ドルです"],
+    ["y","Card, please.","カードでお願いします"],
+    ["c","Here's your receipt. Thank you!","レシートです。ありがとう!"],
+    ["y","Thank you!","ありがとう!"]]},
+  {t:"6. 聞き返す・困ったとき",l:[
+    ["y","Sorry, can you say that again?","もう一度言ってもらえますか?"],
+    ["y","Slowly, please.","ゆっくりお願いします"],
+    ["y","Can I get some napkins?","ナプキンをもらえますか?"],
+    ["y","I have a peanut allergy.","ピーナッツアレルギーがあります"]]},
+];
+function renderWords(){
+  $("#wordList").innerHTML=WORDS.map((g,gi)=>`<h2>${g[0]}</h2><div class="wd">${g[1].map((w,wi)=>`<button data-w="${gi}-${wi}">🔊 ${w[0]}<small>${w[1]}</small></button>`).join("")}</div>`).join("");
+  document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{const[g,w]=b.dataset.w.split("-");speak(WORDS[g][1][w][0])});
+  $("#dlgList").innerHTML=DLG.map((d,di)=>`<div class="dlg"><h3>${d.t}</h3>${d.l.map((x,li)=>`
+    <div class="ln ${x[0]==="y"?"you":""}"><div class="who">${x[0]==="c"?"🧑‍🍳":"🙋"}</div>
+    <div class="tx"><b>${x[1]}</b><small>${x[2]}</small></div><button data-d="${di}-${li}">🔊</button></div>`).join("")}
+    <div class="row"><button class="btn ghost" data-all="${di}">🔊 最初から続けて再生</button></div></div>`).join("");
+  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{const[d,l]=b.dataset.d.split("-");speak(DLG[d].l[l][1])});
+  document.querySelectorAll("[data-all]").forEach(b=>b.onclick=()=>speak(DLG[b.dataset.all].l.map(x=>x[1]).join(" ")));
+}
+
 // ---- voice roleplay (speech-to-speech: 音声認識 → Claude API → 音声合成)
 const V={msgs:[],on:false,rec:null,busy:false,log:[]};
 const toB64=b=>new Promise(res=>{const f=new FileReader();f.onload=()=>res(f.result.split(",")[1]);f.readAsDataURL(b)});
@@ -445,13 +536,13 @@ $("#vReset").onclick=()=>{speechSynthesis.cancel();V.rec&&V.rec.abort();V.msgs=[
 $("#vMic").onclick=()=>{speechSynthesis.cancel();V.rec?V.rec.stop():listen()};
 
 // ---- PWA
-if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 let deferredInstall=null;
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("#install").style.display="block"});
 $("#install").onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$("#install").style.display="none"};
 addEventListener("appinstalled",()=>{$("#install").style.display="none"});
 
-renderMenu();renderSum();renderCustom();renderTalk();
+renderMenu();renderSum();renderCustom();renderTalk();renderWords();
 </script>
 </body>
 </html>
