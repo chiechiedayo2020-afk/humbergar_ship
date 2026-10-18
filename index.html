@@ -155,6 +155,7 @@
   <div class="cart" id="aiPanel" style="position:static;margin:14px 0"><div style="font-weight:700;margin-bottom:6px">🎤 AI店員と話す（speech-to-speech）</div>
   <p style="font-size:13px;color:var(--sub);margin-top:0">下のメニューを見ながら、AIの店員さんと英語で話そう。スタートすると店員が先に挨拶します。会話の文字は、終わってからまとめて表示します。</p>
   <div id="settings" style="background:#fff8ee;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 12px"></div>
+  <div id="keyBox" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 12px"></div>
   <div class="row" style="margin:0 0 12px">
     <button class="btn" id="vStart">▶ 会話スタート</button>
     <button class="btn alt" id="vEnd">終了して保存</button>
@@ -206,6 +207,7 @@
   <div class="sum" id="sum">カートは空です</div>
 </div>
 
+<script src="rt-config.js"></script>
 <script>
 const MENU = {
   burger:[
@@ -259,7 +261,7 @@ const sizeOf=id=>S.sizes[id]||"medium";
 const unit=i=>i.p+(isSized(i)?SZ.find(z=>z[0]===sizeOf(i.id))[3]:0);
 
 // ---- speech
-const SPEEDS={slow:{label:"🐢 ゆっくり",r:.6},normal:{label:"普通",r:.85},fast:{label:"🐇 早い",r:1.1}};
+const SPEEDS={slow:{label:"🐢 ゆっくり",r:.6,t:.8},normal:{label:"普通",r:.9,t:1},fast:{label:"🐇 早い",r:1.1,t:1.2}};
 let SPEED="normal";
 try{const p=localStorage.getItem("speed");if(SPEEDS[p])SPEED=p}catch(e){}
 function speedHTML(){
@@ -272,12 +274,52 @@ function bindSpeed(root,redraw){
     redraw();
   });
 }
+// ---- 自然な声: ①サーバーのキー ②この端末に保存したキー を使う。どちらも無ければブラウザの声
+const OKEYS={get(){try{return localStorage.getItem("openai_key")||""}catch(e){return ""}},
+  set(v){try{v?localStorage.setItem("openai_key",v):localStorage.removeItem("openai_key")}catch(e){}}};
+const ttsCache=new Map();let serverTTS=null,ttsAudio=null,speakSeq=0;
+async function ttsBlob(text,voice,speed){
+  const key=text+"|"+voice+"|"+speed;if(ttsCache.has(key))return ttsCache.get(key);
+  let blob=null;
+  if(serverTTS!==false){
+    try{
+      const r=await fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text,voice,speed})});
+      if(r.ok&&(r.headers.get("content-type")||"").includes("audio")){blob=await r.blob();serverTTS=true}else serverTTS=false;
+    }catch(e){serverTTS=false}
+  }
+  if(!blob&&OKEYS.get()){
+    const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",
+      headers:{"content-type":"application/json",authorization:"Bearer "+OKEYS.get()},
+      body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input:text,response_format:"mp3",speed,
+        instructions:"Speak in natural, friendly American English like a real person at a burger restaurant. Clear and relaxed, not exaggerated."})});
+    if(!r.ok)throw new Error("tts "+r.status);
+    blob=await r.blob();
+  }
+  if(blob)ttsCache.set(key,blob);
+  return blob;
+}
+function stopSpeech(){speakSeq++;if(window.speechSynthesis)speechSynthesis.cancel();if(ttsAudio){try{ttsAudio.pause()}catch(e){}ttsAudio=null}}
 function speak(t,o={}){
+  stopSpeech();
+  const my=speakSeq;
+  if(serverTTS!==false||OKEYS.get()){
+    const voice=o.voice||PERSONAS[PERSONA].voice,speed=SPEEDS[SPEED].t;
+    ttsBlob(t,voice,speed).then(b=>{
+      if(my!==speakSeq)return;
+      if(!b)return browserSpeak(t,o);
+      ttsAudio=new Audio(URL.createObjectURL(b));
+      ttsAudio.play().catch(()=>browserSpeak(t,o));
+    }).catch(()=>{if(my===speakSeq)browserSpeak(t,o)});
+    return;
+  }
+  browserSpeak(t,o);
+}
+function browserSpeak(t,o={}){
   if(!window.speechSynthesis)return alert("このブラウザは音声再生に対応していません");
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(t);u.lang="en-US";
   u.rate=SPEEDS[SPEED].r*(o.rate||1);u.pitch=o.pitch||1;
-  if(o.gender){const v=pickVoice(o.gender);if(v)u.voice=v}
+  const v=pickVoice(o.gender||"f");if(v)u.voice=v;
   speechSynthesis.speak(u);
 }
 // 端末の英語音声から、男性/女性らしい声を選ぶ(なければ高さで調整)
@@ -287,14 +329,15 @@ function pickVoice(g){
   const vs=(speechSynthesis.getVoices()||[]).filter(v=>/^en/i.test(v.lang));
   const us=vs.filter(v=>/en[-_]US/i.test(v.lang));
   const ok=v=>g==="f"?FEM.test(v.name):MALE.test(v.name)&&!/female/i.test(v.name);
-  return us.find(ok)||vs.find(ok)||null;
+  const nat=v=>/premium|enhanced|natural|neural|siri|google us/i.test(v.name);
+  return us.find(v=>ok(v)&&nat(v))||us.find(ok)||us.find(nat)||vs.find(ok)||us[0]||null;
 }
 if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{};
 // ---- 店員のキャラクター
 const PERSONAS={
-  bright:{label:"😊 明るい若い女性",gender:"f",pitch:1.12,rate:1.05},
-  polite:{label:"🎩 丁寧な男性",gender:"m",pitch:.95,rate:.95},
-  rude:{label:"😒 態度の悪い店員",gender:"m",pitch:.85,rate:1.1},
+  bright:{label:"😊 明るい若い女性",voice:"marin",gender:"f",pitch:1.12,rate:1.05},
+  polite:{label:"🎩 丁寧な男性",voice:"cedar",gender:"m",pitch:.95,rate:.95},
+  rude:{label:"😒 態度の悪い店員",voice:"ash",gender:"m",pitch:.85,rate:1.1},
 };
 let PERSONA="bright";
 try{const p=localStorage.getItem("persona");if(PERSONAS[p])PERSONA=p}catch(e){}
@@ -389,7 +432,7 @@ function renderMenu(){
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
-        <div class="t"><div class="en">${k==="side"||k==="topping"?"":i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${unit(i).toFixed(2)}</div>${isSized(i)?`<div class="szs">${SZ.map(z=>`<button class="sz ${sizeOf(i.id)===z[0]?"on":""}" data-sz="${i.id}|${z[0]}">${z[1]}<small>$${(i.p+z[3]).toFixed(2)}</small></button>`).join("")}</div>`:""}${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(unit(i)*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
+        <div class="t"><div class="en">${k==="side"||k==="topping"?"":i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${unit(i).toFixed(2)}</div>${isSized(i)?`<div class="szs">${SZ.map(z=>`<button class="sz ${sizeOf(i.id)===z[0]?"on":""}" data-sz="${i.id}|${z[0]}">${z[1]}<small>$${(i.p+z[3]).toFixed(2)}</small></button>`).join("")}</div>`:""}${S.cart[i.id]?`<div class="sub">×${S.cart[i.id]} = $${(unit(i)*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
         <div class="qty"><label class="ck"><input type="checkbox" data-ck="${i.id}" ${S.cart[i.id]?"checked":""}> 注文</label>${S.cart[i.id]?`<button data-d="-1" data-id="${i.id}">−</button><span>${S.cart[i.id]}</span><button data-d="1" data-id="${i.id}">＋</button>`:""}</div>
       </div>`).join("");
   }
@@ -623,13 +666,12 @@ async function vStart(){
   vStop();V.show=false;V.order=[];V.items={};V.recs={};V.chunks={};$("#vLog").innerHTML="";
   vStatus("接続中…（マイクの許可を求められたら「許可」）");
   try{
-    const r=await fetch("/api/session",{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({persona:PERSONA,level:LV,speed:SPEED_RT[SPEED],order_hint:orderHint(),menu:menuForClerk()})});
-    const d=await r.json();if(!r.ok)throw new Error(d.error);
+    const body={persona:PERSONA,level:LV,speed:SPEED_RT[SPEED],order_hint:orderHint(),menu:menuForClerk()};
+    const key=await getRealtimeKey(body);
     V.mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
     const pc=V.pc=new RTCPeerConnection();
     V.audio=V.audio||new Audio();V.audio.autoplay=true;
-    pc.ontrack=e=>{V.audio.srcObject=e.streams[0];startRec("clerk",e.streams[0])};
+    pc.ontrack=e=>{V.audio.srcObject=e.streams[0];V.audio.play().catch(()=>{});startRec("clerk",e.streams[0])};
     pc.addTrack(V.mic.getTracks()[0],V.mic);
     startRec("you",V.mic);
     const dc=V.dc=pc.createDataChannel("oai-events");
@@ -641,12 +683,41 @@ async function vStart(){
     pc.onconnectionstatechange=()=>{if(["failed","disconnected"].includes(pc.connectionState))vStatus("接続が切れました。もう一度スタートしてください")};
     const offer=await pc.createOffer();await pc.setLocalDescription(offer);
     const sr=await fetch("https://api.openai.com/v1/realtime/calls",{method:"POST",body:offer.sdp,
-      headers:{Authorization:"Bearer "+d.value,"Content-Type":"application/sdp"}});
+      headers:{Authorization:"Bearer "+key,"Content-Type":"application/sdp"}});
     if(!sr.ok)throw new Error("OpenAIへの接続に失敗しました ("+sr.status+")");
     await pc.setRemoteDescription({type:"answer",sdp:await sr.text()});
   }catch(e){
     vStatus(e.name==="NotAllowedError"?"マイクの使用を許可してください":"エラー: "+e.message);vStop();
   }
+}
+// AI店員用の一時キー: ①このサーバー ②この端末に保存したキー の順に試す
+async function getRealtimeKey(body){
+  let serverErr="";
+  try{
+    const r=await fetch("/api/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+    if((r.headers.get("content-type")||"").includes("json")){
+      const d=await r.json();
+      if(r.ok&&d.value)return d.value;
+      serverErr=d.error||"";
+    }
+  }catch(e){}
+  const k=OKEYS.get();
+  if(!k)throw new Error(serverErr||"OpenAIのAPIキーが必要です。下の「🔑 APIキー」に入力して保存してください");
+  const r=await fetch("https://api.openai.com/v1/realtime/client_secrets",{method:"POST",
+    headers:{"content-type":"application/json",authorization:"Bearer "+k},
+    body:JSON.stringify({session:RTCFG.buildSession(body)})});
+  const d=await r.json();
+  if(!r.ok)throw new Error((d.error&&d.error.message)||"OpenAIへの接続に失敗しました ("+r.status+")");
+  return d.value;
+}
+function renderKeyBox(){
+  const has=!!OKEYS.get();
+  $("#keyBox").innerHTML=`<div style="font-weight:700;margin-bottom:4px">🔑 OpenAI APIキー ${has?"<span style='color:#1a9e4a'>✓ 保存済み</span>":""}</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:6px">この端末のブラウザにだけ保存します（GitHubやサーバーには送りません）。公開ページで会話・自然な声を使うときに必要です。パソコンの .env に書いてある場合は不要です。</div>
+    <div class="row" style="margin:0"><input id="keyIn" type="password" placeholder="sk-..." autocomplete="off" style="flex:1;min-width:160px;padding:8px;border:1px solid var(--line);border-radius:8px">
+    <button class="btn" id="keySave" style="padding:8px 14px">保存</button>${has?`<button class="btn ghost" id="keyDel" style="padding:8px 14px">削除</button>`:""}</div>`;
+  $("#keySave").onclick=()=>{const v=$("#keyIn").value.trim();if(!/^sk-[\x21-\x7e]+$/.test(v))return alert("sk- で始まるキーを入力してください");OKEYS.set(v);ttsCache.clear();renderKeyBox();vStatus("キーを保存しました")};
+  const d=$("#keyDel");if(d)d.onclick=()=>{OKEYS.set("");renderKeyBox()};
 }
 async function vSave(){
   const lines=V.order.map(id=>V.items[id]).filter(m=>m.text);
@@ -697,7 +768,7 @@ addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;
 $("#install").onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$("#install").style.display="none"};
 addEventListener("appinstalled",()=>{$("#install").style.display="none"});
 
-renderSettings();renderMenu();renderSum();renderCustom();renderTalk();renderWords();tab("words");
+renderSettings();renderKeyBox();renderMenu();renderSum();renderCustom();renderTalk();renderWords();tab("words");
 </script>
 </body>
 </html>
