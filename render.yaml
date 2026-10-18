@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: burger-order
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: node server.js
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false   # 値はRenderの画面で入力する(GitHubには書かない)

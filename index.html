@@ -155,8 +155,7 @@
   <div class="cart" id="aiPanel" style="position:static;margin:14px 0"><div style="font-weight:700;margin-bottom:6px">🎤 AI店員と話す（speech-to-speech）</div>
   <p style="font-size:13px;color:var(--sub);margin-top:0">下のメニューを見ながら、AIの店員さんと英語で話そう。スタートすると店員が先に挨拶します。会話の文字は、終わってからまとめて表示します。</p>
   <div id="settings" style="background:#fff8ee;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 12px"></div>
-  <div id="keyBox" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 12px"></div>
-  <div class="row" style="margin:0 0 12px">
+    <div class="row" style="margin:0 0 12px">
     <button class="btn" id="vStart">▶ 会話スタート</button>
     <button class="btn alt" id="vEnd">終了して保存</button>
     <button class="btn ghost" id="vReset">やり直し</button>
@@ -207,7 +206,6 @@
   <div class="sum" id="sum">カートは空です</div>
 </div>
 
-<script src="rt-config.js"></script>
 <script>
 const MENU = {
   burger:[
@@ -274,27 +272,16 @@ function bindSpeed(root,redraw){
     redraw();
   });
 }
-// ---- 自然な声: ①サーバーのキー ②この端末に保存したキー を使う。どちらも無ければブラウザの声
-const OKEYS={get(){try{return localStorage.getItem("openai_key")||""}catch(e){return ""}},
-  set(v){try{v?localStorage.setItem("openai_key",v):localStorage.removeItem("openai_key")}catch(e){}}};
+// ---- 自然な声: サーバー(キーはサーバーだけが持つ)から取る。使えないときはブラウザの声
 const ttsCache=new Map();let serverTTS=null,ttsAudio=null,speakSeq=0;
-async function ttsBlob(text,voice,speed){
-  const key=text+"|"+voice+"|"+speed;if(ttsCache.has(key))return ttsCache.get(key);
+async function ttsBlob(text,voice,speed,persona){
+  const key=text+"|"+voice+"|"+speed+"|"+persona;if(ttsCache.has(key))return ttsCache.get(key);
   let blob=null;
-  if(serverTTS!==false){
-    try{
-      const r=await fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text,voice,speed})});
-      if(r.ok&&(r.headers.get("content-type")||"").includes("audio")){blob=await r.blob();serverTTS=true}else serverTTS=false;
-    }catch(e){serverTTS=false}
-  }
-  if(!blob&&OKEYS.get()){
-    const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",
-      headers:{"content-type":"application/json",authorization:"Bearer "+OKEYS.get()},
-      body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input:text,response_format:"mp3",speed,
-        instructions:"Speak in natural, friendly American English like a real person at a burger restaurant. Clear and relaxed, not exaggerated."})});
-    if(!r.ok)throw new Error("tts "+r.status);
-    blob=await r.blob();
-  }
+  try{
+    const r=await fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text,voice,speed,persona})});
+    if(r.ok&&(r.headers.get("content-type")||"").includes("audio")){blob=await r.blob();serverTTS=true}
+    else if(r.status!==429)serverTTS=false;
+  }catch(e){serverTTS=false}
   if(blob)ttsCache.set(key,blob);
   return blob;
 }
@@ -302,9 +289,9 @@ function stopSpeech(){speakSeq++;if(window.speechSynthesis)speechSynthesis.cance
 function speak(t,o={}){
   stopSpeech();
   const my=speakSeq;
-  if(serverTTS!==false||OKEYS.get()){
+  if(serverTTS!==false){
     const voice=o.voice||PERSONAS[PERSONA].voice,speed=SPEEDS[SPEED].t;
-    ttsBlob(t,voice,speed).then(b=>{
+    ttsBlob(t,voice,speed,o.persona||PERSONA).then(b=>{
       if(my!==speakSeq)return;
       if(!b)return browserSpeak(t,o);
       ttsAudio=new Audio(URL.createObjectURL(b));
@@ -335,7 +322,7 @@ function pickVoice(g){
 if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{};
 // ---- 店員のキャラクター
 const PERSONAS={
-  bright:{label:"😊 明るい若い女性",voice:"marin",gender:"f",pitch:1.12,rate:1.05},
+  bright:{label:"😊 明るい若い女性",voice:"marin",gender:"f",pitch:1.25,rate:1.08},
   polite:{label:"🎩 丁寧な男性",voice:"cedar",gender:"m",pitch:.95,rate:.95},
   rude:{label:"😒 態度の悪い店員",voice:"ash",gender:"m",pitch:.85,rate:1.1},
 };
@@ -690,34 +677,16 @@ async function vStart(){
     vStatus(e.name==="NotAllowedError"?"マイクの使用を許可してください":"エラー: "+e.message);vStop();
   }
 }
-// AI店員用の一時キー: ①このサーバー ②この端末に保存したキー の順に試す
+// AI店員用の一時キー(本物のキーはサーバーが持ち、ここには短時間だけ使える一時キーが届く)
 async function getRealtimeKey(body){
-  let serverErr="";
-  try{
-    const r=await fetch("/api/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
-    if((r.headers.get("content-type")||"").includes("json")){
-      const d=await r.json();
-      if(r.ok&&d.value)return d.value;
-      serverErr=d.error||"";
-    }
-  }catch(e){}
-  const k=OKEYS.get();
-  if(!k)throw new Error(serverErr||"OpenAIのAPIキーが必要です。下の「🔑 APIキー」に入力して保存してください");
-  const r=await fetch("https://api.openai.com/v1/realtime/client_secrets",{method:"POST",
-    headers:{"content-type":"application/json",authorization:"Bearer "+k},
-    body:JSON.stringify({session:RTCFG.buildSession(body)})});
+  let r;
+  try{r=await fetch("/api/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}
+  catch(e){throw new Error("サーバーにつながりません。インターネット接続を確認してください")}
+  if(!(r.headers.get("content-type")||"").includes("json"))
+    throw new Error("このページにはAI会話のサーバーがありません。アプリのURL（サーバー版）から開いてください");
   const d=await r.json();
-  if(!r.ok)throw new Error((d.error&&d.error.message)||"OpenAIへの接続に失敗しました ("+r.status+")");
+  if(!r.ok||!d.value)throw new Error(d.error||"接続に失敗しました ("+r.status+")");
   return d.value;
-}
-function renderKeyBox(){
-  const has=!!OKEYS.get();
-  $("#keyBox").innerHTML=`<div style="font-weight:700;margin-bottom:4px">🔑 OpenAI APIキー ${has?"<span style='color:#1a9e4a'>✓ 保存済み</span>":""}</div>
-    <div style="font-size:12px;color:var(--sub);margin-bottom:6px">この端末のブラウザにだけ保存します（GitHubやサーバーには送りません）。公開ページで会話・自然な声を使うときに必要です。パソコンの .env に書いてある場合は不要です。</div>
-    <div class="row" style="margin:0"><input id="keyIn" type="password" placeholder="sk-..." autocomplete="off" style="flex:1;min-width:160px;padding:8px;border:1px solid var(--line);border-radius:8px">
-    <button class="btn" id="keySave" style="padding:8px 14px">保存</button>${has?`<button class="btn ghost" id="keyDel" style="padding:8px 14px">削除</button>`:""}</div>`;
-  $("#keySave").onclick=()=>{const v=$("#keyIn").value.trim();if(!/^sk-[\x21-\x7e]+$/.test(v))return alert("sk- で始まるキーを入力してください");OKEYS.set(v);ttsCache.clear();renderKeyBox();vStatus("キーを保存しました")};
-  const d=$("#keyDel");if(d)d.onclick=()=>{OKEYS.set("");renderKeyBox()};
 }
 async function vSave(){
   const lines=V.order.map(id=>V.items[id]).filter(m=>m.text);
@@ -768,7 +737,7 @@ addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;
 $("#install").onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$("#install").style.display="none"};
 addEventListener("appinstalled",()=>{$("#install").style.display="none"});
 
-renderSettings();renderKeyBox();renderMenu();renderSum();renderCustom();renderTalk();renderWords();tab("words");
+renderSettings();renderMenu();renderSum();renderCustom();renderTalk();renderWords();tab("words");
 </script>
 </body>
 </html>

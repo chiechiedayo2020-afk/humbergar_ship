@@ -20,7 +20,7 @@ const RT_LEVEL = {
   3: "Learner level: Eiken Grade 3. Natural everyday American English, still short and clear; avoid rare words and heavy slang.",
 };
 const RT_PERSONA = {
-  bright: { voice: "marin", text: "Personality: a cheerful, upbeat young woman who is warm and energetic." },
+  bright: { voice: "marin", text: "Personality: a cheerful, upbeat young woman who is warm and energetic. Voice: speak in a bright, sunny, smiling voice, a little higher in pitch, with lively, expressive, upbeat intonation, as if you are happy to see every customer." },
   polite: { voice: "cedar", text: "Personality: a polite, courteous man who speaks formally and respectfully." },
   rude: { voice: "ash", text: "Personality: a rude, impatient, bored cashier who is curt and a bit grumpy (never offensive: no insults or bad language); still take the order correctly." },
 };

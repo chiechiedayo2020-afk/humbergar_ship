@@ -1,57 +1,68 @@
-// 依存なしのローカルサーバー。index.html を配信し、/api/chat で Claude API を中継する。
-// 起動: npm start（.env に OPENAI_API_KEY を書く）
+// 依存なしのサーバー。画面(index.html)を配信し、OpenAIのAPIキーはここにだけ置いて中継する。
+// 起動: npm start（ローカルは .env の OPENAI_API_KEY、公開サーバーは環境変数 OPENAI_API_KEY を使う）
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
+// .env があれば読み込む(無ければ何もしない。公開サーバーでは環境変数を使う)
+try {
+  for (const line of fs.readFileSync(path.join(__dirname, ".env"), "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+} catch (_) {}
+
 const PORT = process.env.PORT || 3000;
-const KEY = process.env.ANTHROPIC_API_KEY;
 const OKEY = process.env.OPENAI_API_KEY;
 const RT_MODEL = process.env.OPENAI_REALTIME_MODEL || "gpt-realtime";
-const MODEL = process.env.CLAUDE_MODEL || "claude-haiku-5-5"; // 低遅延重視
-
-const SYSTEM = `You are a friendly cashier at a burger restaurant in the United States, role-playing with a Japanese learner of English who is practicing ordering.
-Rules:
-- Speak the way a real American cashier does: natural, warm, relaxed spoken English with contractions (e.g. "Hi there! What can I get for you today?", "Anything to drink with that?", "Will that be for here or to go?", "Alright, that'll be $10.50.", "Can I get a name for the order?"). Keep each turn short (1-2 sentences), like a busy counter, and use common everyday phrases. Avoid rare words, long sentences and heavy slang. The learner is a Japanese beginner-to-intermediate speaker, so speak clearly and don't rush, but do NOT talk down to them or use robotic, textbook-simple sentences.
-- Prefer yes/no or choice questions ("Medium or large?") so the learner can answer easily. Ask only one question at a time.
-- If the learner is silent, confused, or says something unclear, rephrase the question a bit more simply and offer the choices.
-- Stay in character as a friendly cashier.
-- Follow a realistic flow: greet -> take order -> combo/size/drink -> cooking/customization -> anything else -> for here or to go -> total and payment -> name/number.
-- Use the learner's intended order (given in "order_hint") if provided, but react to what they actually say.
-- If the learner's English is unclear or wrong, still understand it as best you can and continue the conversation.
-Respond ONLY with a JSON object, no other text:
-{"reply": "<your spoken line in English>", "reply_ja": "<Japanese translation of your line>", "feedback_ja": "<1 short Japanese sentence: praise first, or a gentle correction of the learner's last English. If you suggest a better phrasing, give a natural, polite phrasing (e.g. 'Can I get a cheeseburger, please?'). Empty string if nothing to say>", "done": <true if the order is complete and paid, else false>}`;
-
-async function chat(body) {
-  const messages = body.messages;
-  const LEVEL = {
-    5: "Learner level: Eiken Grade 5 (beginner). Use only very simple words, present tense, max 6 words per sentence, keep questions short.",
-    4: "Learner level: Eiken Grade 4. Use simple everyday words and short, simple sentences (max 10 words).",
-    3: "Learner level: Eiken Grade 3. Natural everyday American English, still short and clear; avoid rare words and heavy slang.",
-  }[body.level] || "";
-  const PERSONA = {
-    bright: "Personality: a cheerful, upbeat young woman who is warm and energetic.",
-    polite: "Personality: a polite, courteous man who speaks formally and respectfully.",
-    rude: "Personality: a rude, impatient, bored cashier who is curt and a bit grumpy (never offensive, no insults or bad language); still take the order correctly.",
-  }[body.persona] || "";
-  const system = SYSTEM + (LEVEL ? `\n\n${LEVEL} This overrides any other level rule above.` : "") + (PERSONA ? `\n${PERSONA}` : "") + (body.order_hint ? `\n\norder_hint: ${body.order_hint}` : "");
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": KEY, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: MODEL, max_tokens: 400, system, messages }),
-  });
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error?.message || "API error");
-  const text = data.content.map(c => c.text || "").join("");
-  const m = text.match(/\{[\s\S]*\}/);
-  return m ? JSON.parse(m[0]) : { reply: text, reply_ja: "", feedback_ja: "", done: false };
-}
-
-// ---- 本物のspeech-to-speech: OpenAI Realtime のブラウザ用一時キーを発行する
+const HOSTED = !!(process.env.RENDER || process.env.RAILWAY_ENVIRONMENT || process.env.FLY_APP_NAME || process.env.VERCEL || process.env.K_SERVICE);
+const KEY_OK = !!OKEY && /^sk-[\x21-\x7e]+$/.test(OKEY);
 const RTCFG = require("./rt-config.js");
+const TTS_STYLE = {
+  default: "Speak in natural, friendly American English like a real person at a burger restaurant. Clear and relaxed, not exaggerated.",
+  bright: "Speak in natural American English as a bright, cheerful young woman at a burger restaurant: a sunny, smiling voice, slightly higher in pitch, with lively, expressive, upbeat intonation and lots of warmth. Clear and easy to understand.",
+  polite: "Speak in natural American English as a polite, courteous man at a burger restaurant: calm, warm and respectful. Clear and easy to understand.",
+  rude: "Speak in natural American English as a bored, impatient cashier: flat, curt and a little grumpy, but still clear and easy to understand.",
+};
 const TTS_VOICES = ["marin", "cedar", "ash", "coral", "alloy", "verse"];
+
+// ---- 悪用・使いすぎ対策(公開サーバーは誰でもURLを知れば呼べるため)
+// 1人(IP)あたり1時間の上限と、サーバー全体の1日の上限。環境変数で変えられる。
+const LIMITS = {
+  session: { perIpHour: Number(process.env.LIMIT_SESSION_IP_HOUR) || 12, perDay: Number(process.env.LIMIT_SESSION_DAY) || 80 },
+  tts: { perIpHour: Number(process.env.LIMIT_TTS_IP_HOUR) || 200, perDay: Number(process.env.LIMIT_TTS_DAY) || 1500 },
+};
+const hits = { session: new Map(), tts: new Map(), day: { session: 0, tts: 0, key: "" } };
+function allow(kind, ip) {
+  const now = Date.now(), today = new Date().toISOString().slice(0, 10);
+  if (hits.day.key !== today) { hits.day = { session: 0, tts: 0, key: today }; }
+  if (hits.day[kind] >= LIMITS[kind].perDay) return false;
+  const arr = (hits[kind].get(ip) || []).filter((t) => now - t < 3600e3);
+  if (arr.length >= LIMITS[kind].perIpHour) return false;
+  arr.push(now); hits[kind].set(ip, arr); hits.day[kind]++;
+  return true;
+}
+const clientIp = (req) => String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+// 別のサイトの画面から呼ばれないようにする(同じサイトからの呼び出しだけ許可)
+function sameSite(req) {
+  const o = req.headers.origin;
+  if (!o) return true;
+  try { return new URL(o).host === req.headers.host; } catch (_) { return false; }
+}
+async function readBody(req, max) {
+  let n = 0; const chunks = [];
+  for await (const c of req) {
+    n += c.length;
+    if (n > max) throw Object.assign(new Error("too large"), { status: 413 });
+    chunks.push(c);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+const json = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
+
+// ---- 本物のspeech-to-speech: OpenAI Realtime のブラウザ用一時キーを発行する(本物のキーは返さない)
 async function session(body) {
-  if (!OKEY || !/^sk-[\x21-\x7e]+$/.test(OKEY)) throw new Error("OpenAIのAPIキーが未設定です。.env の OPENAI_API_KEY にキー（sk-...）を貼って保存し、サーバーを再起動してください");
+  if (!KEY_OK) throw new Error("サーバーにOpenAIのAPIキーが設定されていません（環境変数 OPENAI_API_KEY）");
   const r = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${OKEY}` },
@@ -63,7 +74,7 @@ async function session(body) {
 }
 // 自然な声(単語・会話集の🔊用)。キーはサーバーに置いたまま、音声だけ返す
 async function tts(body) {
-  if (!OKEY || !/^sk-[\x21-\x7e]+$/.test(OKEY)) return null;
+  if (!KEY_OK) return null;
   const text = String(body.text || "").slice(0, 300);
   if (!text) return null;
   const r = await fetch("https://api.openai.com/v1/audio/speech", {
@@ -71,7 +82,7 @@ async function tts(body) {
     headers: { "content-type": "application/json", authorization: `Bearer ${OKEY}` },
     body: JSON.stringify({
       model: "gpt-4o-mini-tts", voice: TTS_VOICES.includes(body.voice) ? body.voice : "marin", input: text,
-      instructions: "Speak in natural, friendly American English like a real person at a burger restaurant. Clear and relaxed, not exaggerated.",
+      instructions: TTS_STYLE[body.persona] || TTS_STYLE.default,
       response_format: "mp3", speed: Math.min(2, Math.max(0.5, Number(body.speed) || 1)),
     }),
   });
@@ -79,84 +90,55 @@ async function tts(body) {
   return Buffer.from(await r.arrayBuffer());
 }
 
+const STATIC = {
+  "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json"],
+  "/sw.js": ["sw.js", "text/javascript; charset=utf-8"],
+  "/rt-config.js": ["rt-config.js", "text/javascript; charset=utf-8"],
+  "/icons/icon-192.png": ["icon-192.png", "image/png"],
+  "/icons/icon-512.png": ["icon-512.png", "image/png"],
+  "/icons/icon-maskable-512.png": ["icon-maskable-512.png", "image/png"],
+  "/icons/apple-touch-icon.png": ["apple-touch-icon.png", "image/png"],
+};
+
 http.createServer(async (req, res) => {
-  if (req.method === "POST" && req.url === "/api/chat") {
-    let raw = "";
-    for await (const c of req) raw += c;
-    try {
-      if (!KEY) throw new Error("ANTHROPIC_API_KEY が設定されていません");
-      const out = await chat(JSON.parse(raw));
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(out));
-    } catch (e) {
-      res.writeHead(500, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-  if (req.method === "POST" && req.url === "/api/session") {
-    let raw = "";
-    for await (const c of req) raw += c;
-    try {
-      const out = await session(JSON.parse(raw));
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(out));
-    } catch (e) {
-      res.writeHead(500, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-  if (req.method === "POST" && req.url === "/api/tts") {
-    let raw = "";
-    for await (const c of req) raw += c;
-    try {
-      const buf = await tts(JSON.parse(raw));
-      if (!buf) { res.writeHead(501); return res.end("no key"); }
-      res.writeHead(200, { "content-type": "audio/mpeg" });
-      res.end(buf);
-    } catch (e) {
-      res.writeHead(500, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-  if (req.method === "POST" && req.url === "/api/save") {
-    let raw = "";
-    for await (const c of req) raw += c;
-    try {
-      const { text, audio = [] } = JSON.parse(raw);
-      const d = new Date(), p = n => String(n).padStart(2, "0");
-      const id = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-      const dir = path.join(__dirname, "conversations", id);
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, "transcript.txt"), text, "utf8");
-      for (const a of audio) {
-        const safe = path.basename(a.name); // パストラバーサル防止
-        fs.writeFileSync(path.join(dir, safe), Buffer.from(a.b64, "base64"));
+  try {
+    const url = req.url.split("?")[0];
+    if (req.method === "POST" && url.startsWith("/api/")) {
+      if (!sameSite(req)) return json(res, 403, { error: "forbidden" });
+      const ip = clientIp(req);
+      if (url === "/api/session") {
+        if (!allow("session", ip)) return json(res, 429, { error: "今日は会話の回数の上限に達しました。しばらくしてからまたお試しください" });
+        return json(res, 200, await session(JSON.parse(await readBody(req, 200e3))));
       }
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ file: `conversations/${id}/`, audio: audio.length }));
-    } catch (e) {
-      res.writeHead(500, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: e.message }));
+      if (url === "/api/tts") {
+        if (!KEY_OK) { res.writeHead(501); return res.end("no key"); }
+        if (!allow("tts", ip)) { res.writeHead(429); return res.end("limit"); }
+        const buf = await tts(JSON.parse(await readBody(req, 20e3)));
+        if (!buf) { res.writeHead(501); return res.end("no key"); }
+        res.writeHead(200, { "content-type": "audio/mpeg", "cache-control": "private, max-age=86400" });
+        return res.end(buf);
+      }
+      if (url === "/api/save") { // 会話の保存は、自分のパソコンで動かしているときだけ
+        if (HOSTED) return json(res, 403, { error: "公開サーバーでは保存できません（ダウンロードされます）" });
+        const { text, audio = [] } = JSON.parse(await readBody(req, 60e6));
+        const d = new Date(), p = (n) => String(n).padStart(2, "0");
+        const id = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+        const dir = path.join(__dirname, "conversations", id);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, "transcript.txt"), String(text), "utf8");
+        for (const a of audio) fs.writeFileSync(path.join(dir, path.basename(a.name)), Buffer.from(a.b64, "base64")); // パストラバーサル防止
+        return json(res, 200, { file: `conversations/${id}/`, audio: audio.length });
+      }
+      return json(res, 404, { error: "not found" });
     }
-    return;
+    // 静的ファイル。それ以外は index.html
+    const [file, type] = STATIC[url] || ["index.html", "text/html; charset=utf-8"];
+    fs.readFile(path.join(__dirname, file), (err, buf) => {
+      if (err) { res.writeHead(404); return res.end("not found"); }
+      res.writeHead(200, { "content-type": type });
+      res.end(buf);
+    });
+  } catch (e) {
+    json(res, e.status || 500, { error: e.message });
   }
-  // 静的ファイル(PWA用: manifest / sw.js / icons)。それ以外は index.html。
-  const STATIC = {
-    "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json"],
-    "/sw.js": ["sw.js", "text/javascript; charset=utf-8"],
-    "/rt-config.js": ["rt-config.js", "text/javascript; charset=utf-8"],
-    "/icons/icon-192.png": ["icon-192.png", "image/png"],
-    "/icons/icon-512.png": ["icon-512.png", "image/png"],
-    "/icons/icon-maskable-512.png": ["icon-maskable-512.png", "image/png"],
-    "/icons/apple-touch-icon.png": ["apple-touch-icon.png", "image/png"],
-  };
-  const [file, type] = STATIC[req.url.split("?")[0]] || ["index.html", "text/html; charset=utf-8"];
-  fs.readFile(path.join(__dirname, file), (err, buf) => {
-    if (err) { res.writeHead(404); return res.end("not found"); }
-    res.writeHead(200, { "content-type": type });
-    res.end(buf);
-  });
-}).listen(PORT, () => console.log(`http://localhost:${PORT}`));
+}).listen(PORT, () => console.log(`http://localhost:${PORT}  (APIキー: ${KEY_OK ? "設定済み" : "未設定"}${HOSTED ? ", 公開サーバー" : ""})`));
