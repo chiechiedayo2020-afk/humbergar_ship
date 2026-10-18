@@ -90,6 +90,7 @@
   .empty{color:var(--sub);text-align:center;padding:30px 0}
   .wd{display:flex;flex-wrap:wrap;gap:8px}
   .wd button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;font-size:15px;font-weight:700;text-align:left;color:var(--ink)}
+  .wd button .we{display:block;font-size:26px;line-height:1.2;margin-bottom:2px}
   .wd button small{display:block;font-size:11px;font-weight:400;color:var(--sub)}
   .dlg{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px}
   .dlg h3{margin:0 0 8px;font-size:14px;color:var(--accent)}
@@ -506,16 +507,18 @@ function renderTalk(){
 $("#freeSpeak").onclick=()=>$("#free").value.trim()&&speak($("#free").value);
 
 // ---- words & simple dialogs (practice)
+const MODIC={"no pickles":"🥒🚫","no onions":"🧅🚫","no tomato":"🍅🚫","no mayo":"🫙🚫","no cheese":"🧀🚫","extra cheese":"🧀➕","extra pickles":"🥒➕","sauce on the side":"🥫➡️","no ketchup":"🧴🚫","lettuce wrap":"🥬🍔"};
+// [英語, 日本語, イラスト]
 const WORDS=[
-  ["バーガー",MENU.burger.map(i=>[i.en,i.ja])],
-  ["サイド",MENU.side.map(i=>[i.en,i.ja])],
-  ["ドリンク",MENU.drink.map(i=>[i.en,i.ja])],
-  ["トッピング",MENU.topping.map(i=>[i.en,i.ja])],
-  ["サイズ",[["Small","小"],["Medium","中"],["Large","大"]]],
-  ["好み(抜く・足す)",MODS.map(m=>[m[0],m[1]])],
-  ["焼き加減",[["Medium","ミディアム"],["Well done","ウェルダン"]]],
-  ["お店で使う言葉",[["Combo","セット"],["For here","店内"],["To go","持ち帰り"],["Receipt","レシート"],["Napkin","ナプキン"],["Straw","ストロー"],["Ketchup","ケチャップ"],["Refill","おかわり"],["Cash","現金"],["Card","カード"],["Total","合計"],["Tax","税金"],["Tip","チップ"]]],
-  ["数字・金額",[["One dollar","1ドル"],["Five dollars","5ドル"],["Ten dollars","10ドル"],["Fifteen dollars","15ドル"],["Twenty dollars","20ドル"],["Fifty dollars","50ドル"],["Six fifty","6ドル50セント"]]],
+  ["バーガー",MENU.burger.map(i=>[i.en,i.ja,i.e])],
+  ["サイド",MENU.side.map(i=>[i.en,i.ja,i.e])],
+  ["ドリンク",MENU.drink.map(i=>[i.en,i.ja,i.e])],
+  ["トッピング",MENU.topping.map(i=>[i.en,i.ja,i.e])],
+  ["サイズ",[["Small","小","🥤","16px"],["Medium","中","🥤","26px"],["Large","大","🥤","38px"]]],
+  ["好み(抜く・足す)",MODS.map(m=>[m[0],m[1],MODIC[m[0]]||"❓"])],
+  ["焼き加減",[["Medium","ミディアム","🥩🔥"],["Well done","ウェルダン","🥩🔥🔥"]]],
+  ["お店で使う言葉",[["Combo","セット","🍔🍟🥤"],["For here","店内","🪑"],["To go","持ち帰り","🛍️"],["Receipt","レシート","🧾"],["Napkin","ナプキン","🧻"],["Straw","ストロー","🥤"],["Ketchup","ケチャップ","🧴"],["Refill","おかわり","🔄🥤"],["Cash","現金","💵"],["Card","カード","💳"],["Total","合計","🧮"],["Tax","税金","🏷️"],["Tip","チップ","🪙"]]],
+  ["数字・金額",[["One dollar","1ドル","💵"],["Five dollars","5ドル","💵💵💵💵💵"],["Ten dollars","10ドル","💰"],["Fifteen dollars","15ドル","💰💵"],["Twenty dollars","20ドル","💰💰"],["Fifty dollars","50ドル","💰💰💰💰💰"],["Six fifty","6ドル50セント","💵🪙"]]],
 ];
 const DLG=[
   {t:"1. 注文する(いちばん基本)",l:[
@@ -550,7 +553,7 @@ const DLG=[
     ["y","I have a peanut allergy.","ピーナッツアレルギーがあります"]]},
 ];
 function renderWords(){
-  $("#wordList").innerHTML=WORDS.map((g,gi)=>`<h2>${g[0]}</h2><div class="wd">${g[1].map((w,wi)=>`<button data-w="${gi}-${wi}">🔊 ${w[0]}<small>${w[1]}</small></button>`).join("")}</div>`).join("");
+  $("#wordList").innerHTML=WORDS.map((g,gi)=>`<h2>${g[0]}</h2><div class="wd">${g[1].map((w,wi)=>`<button data-w="${gi}-${wi}"><span class="we"${w[3]?` style="font-size:${w[3]}"`:""}>${w[2]||""}</span>🔊 ${w[0]}<small>${w[1]}</small></button>`).join("")}</div>`).join("");
   document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{const[g,w]=b.dataset.w.split("-");speak(WORDS[g][1][w][0])});
   $("#dlgList").innerHTML=DLG.map((d,di)=>`<div class="dlg"><h3>${d.t}</h3>${d.l.map((x,li)=>`
     <div class="ln ${x[0]==="y"?"you":""}"><div class="who">${x[0]==="c"?"🧑‍🍳":"🙋"}</div>
