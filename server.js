@@ -19,10 +19,10 @@ const HOSTED = !!(process.env.RENDER || process.env.RAILWAY_ENVIRONMENT || proce
 const KEY_OK = !!OKEY && /^sk-[\x21-\x7e]+$/.test(OKEY);
 const RTCFG = require("./rt-config.js");
 const TTS_STYLE = {
-  default: "Speak in natural, friendly American English like a real person at a burger restaurant. Clear and relaxed, not exaggerated.",
-  bright: "Speak in natural American English as a bright, cheerful young woman at a burger restaurant: a sunny, smiling voice, slightly higher in pitch, with lively, expressive, upbeat intonation and lots of warmth. Clear and easy to understand.",
-  polite: "Speak in natural American English as a polite, courteous man at a burger restaurant: calm, warm and respectful. Clear and easy to understand.",
-  rude: "Speak in natural American English as a bored, impatient cashier: flat, curt and a little grumpy, but still clear and easy to understand.",
+  default: "Speak in natural, friendly American English like a real person at a burger restaurant. Very clear, crisp and well-enunciated, at a steady pace, not exaggerated.",
+  bright: "Speak in natural American English as a bright, cheerful young woman at a burger restaurant: a sunny, smiling voice, slightly higher in pitch, with lively, expressive, upbeat intonation and lots of warmth. Very clear, crisp and well-enunciated.",
+  polite: "Speak in natural American English as a polite, courteous man at a burger restaurant: calm, warm and respectful. Very clear, crisp and well-enunciated.",
+  rude: "Speak in natural American English as a bored, impatient cashier: flat, curt and a little grumpy, but still very clear, crisp and well-enunciated.",
 };
 const TTS_VOICES = ["marin", "cedar", "ash", "coral", "alloy", "verse"];
 
