@@ -101,6 +101,16 @@
     button,.chip{cursor:pointer}
     .item:hover,.wd button:hover,.a button:hover{border-color:var(--accent)}
   }
+  .cart{background:#fff;border:2px solid var(--accent);border-radius:12px;padding:10px 12px;margin-bottom:12px;position:sticky;top:96px;z-index:4}
+  .cart .ct{font-size:12px;color:var(--sub);margin-bottom:4px}
+  .cart .ci{display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding:2px 0}
+  .bub{border-radius:14px;padding:12px 14px;margin:8px 0;max-width:92%;line-height:1.5}
+  .bub .en{font-size:18px;font-weight:700}
+  .bub .ja{font-size:12px;color:var(--sub);margin-top:2px}
+  .bub.clerk{background:#fff;border:1px solid var(--line)}
+  .bub.you{background:#fff3d6;border:2px solid var(--accent2);margin-left:auto}
+  .heard{font-size:13px;margin-top:6px;padding:6px 8px;border-radius:8px;background:#f4f4f4}
+  .heard.ok{background:#e7f6ec;color:#126b32}
   textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px}
 </style>
 </head>
@@ -110,10 +120,9 @@
   <nav>
     <button data-tab="menu" class="on">① メニュー</button>
     <button data-tab="custom">② 好み</button>
-    <button data-tab="say">③ 注文する</button>
-    <button data-tab="talk">④ 会話集</button>
-    <button data-tab="voice">⑤ 🎤練習</button>
-    <button data-tab="words">⑥ 📖単語</button>
+    <button data-tab="talk">③ 会話集</button>
+    <button data-tab="voice">④ 🎤AI練習</button>
+    <button data-tab="words">⑤ 📖単語</button>
   </nav>
 </header>
 <main>
@@ -128,6 +137,8 @@
   <h2>BURGERS</h2><div id="l-burger"></div>
   <h2>SIDES</h2><div id="l-side"></div>
   <h2>DRINKS</h2><div id="l-drink"></div>
+  <button class="btn" id="goPractice" style="width:100%;margin-top:18px;font-size:17px">💬 会話練習をはじめる</button>
+  <p style="font-size:12px;color:var(--sub);text-align:center">選んだ品物を見ながら、店員さんとの会話を練習します</p>
 </section>
 
 <section id="custom">
@@ -177,7 +188,7 @@
 
 <div class="bar">
   <div class="sum" id="sum">カートは空です</div>
-  <button class="btn" id="goSay">注文文を作る →</button>
+  <button class="btn" id="goSay">💬 会話練習 →</button>
 </div>
 
 <div class="show" id="show">
@@ -239,10 +250,12 @@ function tab(n){
   scrollTo(0,0);
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
-$("#goSay").onclick=()=>tab("say");
+$("#goSay").onclick=()=>startPractice();
 
+function startPractice(){P.n=0;P.heard={};tab("say");const st=steps();if(st)speak(st[0].c[0])}
 // ---- menu
 function renderMenu(){
+  $("#goPractice").onclick=startPractice;
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
@@ -301,52 +314,75 @@ function renderCustom(){
 
 // ---- sentence building
 const NUM=["","a","two","three","four","five","six"];
+// 文中では小文字(Coke・Spriteだけ大文字)。"fries"系は "an order of ..." と言う
+const plain=en=>en.replace(/[A-Za-z]+/g,w=>/^(Coke|Sprite)$/.test(w)?w:w.toLowerCase());
 function nameQ(i,q){
-  if(q===1)return (/^[AEIOU]/i.test(i.en)?"an ":"a ")+i.en;
-  const plural=i.en.endsWith("s")||i.en==="Water"?i.en:i.en+"s";
-  return (NUM[q]||q)+" "+plural;
+  const n=plain(i.en);
+  if(/(fries|rings|nuggets)$/.test(n))return q===1?`an order of ${n}`:`${NUM[q]||q} orders of ${n}`;
+  if(q===1)return (/^[aeiou]/i.test(n)?"an ":"a ")+n;
+  return (NUM[q]||q)+" "+(n.endsWith("s")||n==="water"?n:n+"s");
 }
-function build(){
+function sizeEn(){return S.size[0].toUpperCase()+S.size.slice(1)}
+const cap=t=>t[0].toUpperCase()+t.slice(1);
+// 選んだ注文から、店員の質問とあなたの答えを順に作る
+function steps(){
   const items=Object.entries(S.cart).map(([id,q])=>({i:ALL.find(x=>x.id===id),q}));
   if(!items.length)return null;
-  const burgers=items.filter(x=>MENU.burger.includes(x.i));
-  const lines=[];            // {en, ja}
+  const hasB=items.some(x=>MENU.burger.includes(x.i)),hasD=items.some(x=>MENU.drink.includes(x.i));
   const parts=items.map(x=>nameQ(x.i,x.q));
   const joined=parts.length>1?parts.slice(0,-1).join(", ")+" and "+parts.at(-1):parts[0];
-  let main=`Hello. Can I have ${joined}, please?`;
-  const jaItems=items.map(x=>`${x.i.ja}×${x.q}`).join("、");
-  lines.push({en:main,ja:`${jaItems} をください。`});
-  if(burgers.length&&S.combo)lines.push({en:`A combo, please. ${S.size[0].toUpperCase()+S.size.slice(1)} drink.`,ja:`セットにして、ドリンクは${{small:"S",medium:"M",large:"L"}[S.size]}サイズでお願いします。`});
-  else if(!S.combo&&items.some(x=>MENU.drink.includes(x.i)))lines.push({en:`${S.size[0].toUpperCase()+S.size.slice(1)} drink, please.`,ja:`ドリンクは${{small:"S",medium:"M",large:"L"}[S.size]}サイズで。`});
-  if(burgers.length&&S.mods.size){
-    const m=[...S.mods];
-    const jm=m.map(x=>MODS.find(y=>y[0]===x)[1]).join("、");
-    lines.push({en:`${m.map((x,i)=>i?x:x[0].toUpperCase()+x.slice(1)).join(", ")}, please.`,ja:`バーガーは、${jm}でお願いします。`});
-  }
-  if(burgers.length&&S.cook){
-    lines.push({en:`${S.cook[0].toUpperCase()+S.cook.slice(1)}, please.`,ja:`パティは${COOK.find(c=>c[0]===S.cook)[1]}でお願いします。`});
-  }
-  if(S.allergy)lines.push({en:`I have ${S.allergy}. Is this OK?`,ja:`${ALLERGY.find(a=>a[0]===S.allergy)[1]}アレルギーがあります。大丈夫ですか？`});
-  lines.push(S.place==="here"?{en:"For here, please.",ja:"店内で食べます。"}:{en:"To go, please.",ja:"持ち帰りです。"});
-  lines.push({en:"Card, OK?",ja:"カードで払えますか？"});
-  return {lines,items};
+  const st=[{c:["Hi there! What can I get for you today?","いらっしゃい！ご注文は？"],y:[`Hi! Can I get ${joined}, please?`,items.map(x=>`${x.i.ja}×${x.q}`).join("、")+" をください"]}];
+  if(hasB)st.push({c:["Do you want to make that a combo?","セットにしますか？"],y:S.combo?["Yes, make it a combo, please.","はい、セットでお願いします"]:["No, just the burger is fine, thanks.","いえ、バーガーだけで大丈夫です"]});
+  if(S.combo||hasD)st.push({c:["What size do you want?","サイズは？"],y:[`${sizeEn()} is fine.`,"サイズを伝えます"]});
+  if(hasB&&S.mods.size){const m=[...S.mods];st.push({c:["Want to change anything on the burger?","バーガーに変えたいところはありますか？"],y:[cap(m.join(", "))+", please.",m.map(x=>MODS.find(y=>y[0]===x)[1]).join("、")]})}
+  if(hasB&&S.cook)st.push({c:["How do you want your burger cooked?","焼き加減は？"],y:[cap(S.cook)+", please.",COOK.find(c=>c[0]===S.cook)[1]+"でお願いします"]});
+  if(S.allergy)st.push({c:["Any allergies I should know about?","アレルギーはありますか？"],y:[`I have ${S.allergy}. Is this okay?`,ALLERGY.find(a=>a[0]===S.allergy)[1]+"アレルギーがあります。大丈夫ですか？"]});
+  st.push({c:["Anything else for you?","他にご注文は？"],y:["That's it, thanks.","以上です"]});
+  st.push({c:["Is that for here or to go?","店内ですか、お持ち帰りですか？"],y:S.place==="here"?["For here, please.","店内で"]:["To go, please.","持ち帰りで"]});
+  st.push({c:[`Alright, your total is $${total().toFixed(2)}. Cash or card?`,"お会計です。現金ですかカードですか？"],y:["Card, please.","カードで"]});
+  st.push({c:["Here's your receipt. Have a good one!","レシートです。良い一日を！"],y:["Thanks, you too!","ありがとう、あなたも！"]});
+  return st;
+}
+const P={n:0,heard:{}};
+function cartHTML(){
+  return `<div class="cart"><div class="ct">あなたの注文（見ながら話そう）</div>`+Object.entries(S.cart).map(([id,q])=>{const i=ALL.find(x=>x.id===id);return `<div class="ci"><span>${i.e} ${i.en}</span><span>× ${q}</span></div>`}).join("")+`</div>`;
 }
 function renderSay(){
-  const b=build();
-  if(!b){$("#out").innerHTML='<div class="empty">まず「① メニュー」で注文したいものを選んでください</div>';return}
-  $("#out").innerHTML=billHTML()+b.lines.map((l,i)=>`
-    <div class="say"><div class="en">${l.en}</div><div class="ja">${l.ja}</div>
-      <div class="row"><button class="btn ghost" data-sp="${i}">🔊 聞く</button></div></div>`).join("")+
-    `<div class="row">
-      <button class="btn" id="spAll">🔊 全部続けて再生</button>
-      <button class="btn alt" id="showStaff">📱 店員さんに見せる</button>
-    </div>`;
-  document.querySelectorAll("[data-sp]").forEach(x=>x.onclick=()=>speak(b.lines[x.dataset.sp].en));
-  $("#spAll").onclick=()=>speak(b.lines.map(l=>l.en).join(" "));
-  $("#showStaff").onclick=()=>{
-    $("#showList").innerHTML=b.lines.map(l=>`<li>${l.en}</li>`).join("");
-    $("#show").classList.add("on");
+  const st=steps();
+  if(!st){$("#out").innerHTML='<div class="empty">まず「① メニュー」で注文したいものを選んでください</div>';return}
+  if(P.n>=st.length)P.n=st.length-1;
+  let h=cartHTML();
+  for(let k=0;k<=P.n;k++){
+    const s=st[k],cur=k===P.n,heard=P.heard[k];
+    h+=`<div class="bub clerk"><div class="en">🧑‍🍳 ${s.c[0]}</div><div class="ja">${s.c[1]}</div>
+      <div class="row"><button class="btn ghost" data-pc="${k}">🔊 聞く</button></div></div>
+      <div class="bub you"><div class="en">🙋 ${s.y[0]}</div><div class="ja">${s.y[1]}</div>
+      <div class="row"><button class="btn ghost" data-py="${k}">🔊 お手本</button>${SR?`<button class="btn alt" data-pm="${k}">🎤 言ってみる</button>`:""}</div>
+      ${heard?`<div class="heard ${heard.ok?"ok":""}">${heard.ok?"✅ 聞き取れました: ":"もう一度: "}${heard.t}</div>`:""}</div>`;
+  }
+  h+=`<div class="row" style="margin-top:14px">`+
+    (P.n<st.length-1?`<button class="btn" id="pNext">次へ ▶</button>`:`<div class="judge ok" style="width:100%"><b>🎉 おつかれさま！</b><br>最後まで練習できました。</div>`)+
+    `<button class="btn ghost" id="pReset">最初から</button><button class="btn ghost" id="pBack">← メニューへ</button></div>`+judgeHTML();
+  $("#out").innerHTML=h;
+  document.querySelectorAll("[data-pc]").forEach(b=>b.onclick=()=>speak(st[b.dataset.pc].c[0]));
+  document.querySelectorAll("[data-py]").forEach(b=>b.onclick=()=>speak(st[b.dataset.py].y[0]));
+  document.querySelectorAll("[data-pm]").forEach(b=>b.onclick=()=>listenFor(+b.dataset.pm,st));
+  const nx=$("#pNext");if(nx)nx.onclick=()=>{P.n++;renderSay();speak(steps()[P.n].c[0]);scrollTo(0,document.body.scrollHeight)};
+  $("#pReset").onclick=()=>{P.n=0;P.heard={};renderSay();speak(steps()[0].c[0])};
+  $("#pBack").onclick=()=>tab("menu");
+}
+// 自分の声をブラウザで文字にして、お手本と比べる
+function listenFor(k,st){
+  speechSynthesis.cancel();
+  const rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;
+  const norm=t=>t.toLowerCase().replace(/[^a-z0-9 ]/g,"").split(/\s+/).filter(Boolean);
+  rec.onresult=e=>{
+    const t=e.results[0][0].transcript,want=norm(st[k].y[0]),got=new Set(norm(t));
+    const hit=want.filter(w=>got.has(w)).length;
+    P.heard[k]={t,ok:hit/want.length>=.7};renderSay();
   };
+  rec.onerror=()=>{P.heard[k]={t:"聞き取れませんでした",ok:false};renderSay()};
+  rec.start();
 }
 $("#closeShow").onclick=()=>$("#show").classList.remove("on");
 
@@ -400,16 +436,16 @@ const WORDS=[
 ];
 const DLG=[
   {t:"1. 注文する(いちばん基本)",l:[
-    ["c","Hi! What can I get for you?","いらっしゃい!ご注文は?"],
-    ["y","A cheeseburger, please.","チーズバーガーをください"],
-    ["c","Anything to drink?","お飲み物は?"],
-    ["y","A Coke, please.","コーラをください"],
-    ["c","Anything else?","他には?"],
-    ["y","That's all, thank you.","以上です"]]},
+    ["c","Hi there! What can I get for you today?","いらっしゃい!ご注文は?"],
+    ["y","Can I get a cheeseburger, please?","チーズバーガーをください"],
+    ["c","Anything to drink with that?","お飲み物は?"],
+    ["y","And a Coke, please.","あと、コーラをください"],
+    ["c","Anything else for you?","他には?"],
+    ["y","That's it, thanks.","以上です"]]},
   {t:"2. サイズとセット",l:[
-    ["c","Would you like to make it a combo?","セットにしますか?"],
+    ["c","Do you want to make that a combo?","セットにしますか?"],
     ["y","Yes, please.","はい、お願いします"],
-    ["c","What size?","サイズは?"],
+    ["c","What size do you want?","サイズは?"],
     ["y","Medium, please.","Mでお願いします"]]},
   {t:"3. 好みを伝える",l:[
     ["c","Anything you want to change?","変えたいところはありますか?"],
@@ -417,16 +453,16 @@ const DLG=[
     ["c","Sure. How do you want it cooked?","わかりました。焼き加減は?"],
     ["y","Well done, please.","ウェルダンでお願いします"]]},
   {t:"4. 店内か持ち帰りか",l:[
-    ["c","For here or to go?","店内ですか、お持ち帰りですか?"],
+    ["c","Is that for here or to go?","店内ですか、お持ち帰りですか?"],
     ["y","For here, please.","店内でお願いします"]]},
   {t:"5. お会計",l:[
-    ["c","That'll be fifteen dollars.","15ドルです"],
+    ["c","Alright, that'll be fifteen dollars.","15ドルです"],
     ["y","Card, please.","カードでお願いします"],
-    ["c","Here's your receipt. Thank you!","レシートです。ありがとう!"],
-    ["y","Thank you!","ありがとう!"]]},
+    ["c","Here's your receipt. Have a good one!","レシートです。良い一日を!"],
+    ["y","Thanks, you too!","ありがとう、あなたも!"]]},
   {t:"6. 聞き返す・困ったとき",l:[
-    ["y","Sorry, can you say that again?","もう一度言ってもらえますか?"],
-    ["y","Slowly, please.","ゆっくりお願いします"],
+    ["y","Sorry, could you say that again?","もう一度言ってもらえますか?"],
+    ["y","Could you speak a little slower, please?","もう少しゆっくりお願いします"],
     ["y","Can I get some napkins?","ナプキンをもらえますか?"],
     ["y","I have a peanut allergy.","ピーナッツアレルギーがあります"]]},
 ];
