@@ -25,7 +25,7 @@ Respond ONLY with a JSON object, no other text:
 async function chat(body) {
   const messages = body.messages;
   const LEVEL = {
-    5: "Learner level: Eiken Grade 5 (beginner). Use only very simple words, present tense, max 6 words per sentence, prefer yes/no or choice questions.",
+    5: "Learner level: Eiken Grade 5 (beginner). Use only very simple words, present tense, max 6 words per sentence, keep questions short.",
     4: "Learner level: Eiken Grade 4. Use simple everyday words and short, simple sentences (max 10 words).",
     3: "Learner level: Eiken Grade 3. Natural everyday American English, still short and clear; avoid rare words and heavy slang.",
   }[body.level] || "";
@@ -53,9 +53,10 @@ const RT_SYSTEM = `You are a cashier at a burger restaurant in the United States
 - Keep every turn short (1-2 sentences) like a busy counter, and ask only one question at a time.
 - Follow a realistic flow: greet -> take order -> combo/size/drink -> cooking/customization -> anything else -> for here or to go -> total and payment -> name/number -> goodbye.
 - If the learner is silent, confused or unclear, rephrase the question more simply and offer choices. Always understand their intended meaning and keep going.
+- When you ask about size, ask only "What size?" (or a short natural variation). Do NOT list or suggest the options (small, medium, large) in the question. Only mention the size options if the learner stays silent, says they don't know, or clearly cannot answer. Apply the same idea to other questions: don't hand over the answer unless the conversation stalls.
 - Start the conversation yourself by greeting the customer.`;
 const RT_LEVEL = {
-  5: "Learner level: Eiken Grade 5 (beginner). Use only very simple words, present tense, max 6 words per sentence, prefer yes/no or choice questions. Speak slowly and clearly.",
+  5: "Learner level: Eiken Grade 5 (beginner). Use only very simple words, present tense, max 6 words per sentence, keep questions short. Speak slowly and clearly.",
   4: "Learner level: Eiken Grade 4. Use simple everyday words and short, simple sentences (max 10 words).",
   3: "Learner level: Eiken Grade 3. Natural everyday American English, still short and clear; avoid rare words and heavy slang.",
 };
