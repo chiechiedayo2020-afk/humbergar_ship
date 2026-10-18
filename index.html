@@ -388,7 +388,7 @@ function renderMenu(){
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
-        <div class="t"><div class="en">${k==="topping"||k==="side"?i.ja:i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${unit(i).toFixed(2)}</div>${isSized(i)?`<div class="szs">${SZ.map(z=>`<button class="sz ${sizeOf(i.id)===z[0]?"on":""}" data-sz="${i.id}|${z[0]}">${z[1]}<small>$${(i.p+z[3]).toFixed(2)}</small></button>`).join("")}</div>`:""}${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(unit(i)*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
+        <div class="t"><div class="en">${k==="side"?"":k==="topping"?i.ja:i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${unit(i).toFixed(2)}</div>${isSized(i)?`<div class="szs">${SZ.map(z=>`<button class="sz ${sizeOf(i.id)===z[0]?"on":""}" data-sz="${i.id}|${z[0]}">${z[1]}<small>$${(i.p+z[3]).toFixed(2)}</small></button>`).join("")}</div>`:""}${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(unit(i)*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
         <div class="qty"><label class="ck"><input type="checkbox" data-ck="${i.id}" ${S.cart[i.id]?"checked":""}> 注文</label>${S.cart[i.id]?`<button data-d="-1" data-id="${i.id}">−</button><span>${S.cart[i.id]}</span><button data-d="1" data-id="${i.id}">＋</button>`:""}</div>
       </div>`).join("");
   }
