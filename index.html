@@ -47,6 +47,8 @@
   .bill .tot{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;font-weight:700;font-size:17px;color:var(--accent)}
   .qty{display:flex;align-items:center;gap:8px}
   .qty button{width:32px;height:32px;border-radius:50%;border:1px solid var(--accent);background:#fff;color:var(--accent);font-size:18px;font-weight:700}
+  .ck{display:flex;align-items:center;gap:4px;font-size:14px;font-weight:700;color:var(--accent);cursor:pointer}
+  .ck input{width:24px;height:24px;accent-color:var(--accent)}
   .qty span{min-width:16px;text-align:center;font-weight:700}
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{padding:8px 12px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:14px}
@@ -151,11 +153,12 @@
     <div style="font-size:12px;color:var(--sub);margin-top:6px">マイクのオン／オフ（会話中は自動で聞き取ります）</div>
   </div>
 </div>
-  <h2>BURGERS</h2><div id="l-burger"></div>
-  <h2>SIDES</h2><div id="l-side"></div>
-  <h2>DRINKS</h2><div id="l-drink"></div>
-  <button class="btn" id="goPractice" style="width:100%;margin-top:18px;font-size:17px">💬 会話練習をはじめる</button>
-  <p style="font-size:12px;color:var(--sub);text-align:center">選んだ品物を見ながら、店員さんとの会話を練習します</p>
+  <div id="menuHint" class="empty">▶ 「会話スタート」を押すと、メニュー表が出ます。<br>見ながら話して、注文する品物にチェックを入れてください。</div>
+  <div id="menuBox" style="display:none">
+    <h2>BURGERS</h2><div id="l-burger"></div>
+    <h2>SIDES</h2><div id="l-side"></div>
+    <h2>DRINKS</h2><div id="l-drink"></div>
+  </div>
 </section>
 
 <section id="custom">
@@ -167,9 +170,6 @@
   <h2>ALLERGY アレルギー</h2><div class="chips" id="c-allergy"></div>
 </section>
 
-<section id="say">
-  <div id="out"></div>
-</section>
 
 <section id="talk">
   <p style="font-size:13px;color:var(--sub)">店員さんがよく聞く質問と返事の例。タップで発音が聞けます。</p>
@@ -191,13 +191,6 @@
 
 <div class="bar">
   <div class="sum" id="sum">カートは空です</div>
-  <button class="btn" id="goSay">💬 会話練習 →</button>
-</div>
-
-<div class="show" id="show">
-  <h3>Hello! I'd like to order, please.</h3>
-  <ul id="showList"></ul>
-  <button class="btn" id="closeShow">閉じる</button>
 </div>
 
 <script>
@@ -341,14 +334,11 @@ const U=(a,b,c)=>LV===5?a:LV===4?b:c;
 function tab(n){
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===n));
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===n));
-  if(n==="say")renderSay();
-  document.querySelector(".bar").style.display=["menu","custom","say"].includes(n)?"flex":"none";
+  document.querySelector(".bar").style.display=["menu","custom"].includes(n)?"flex":"none";
   scrollTo(0,0);
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
-$("#goSay").onclick=()=>startPractice();
 
-function startPractice(){P.n=0;P.heard={};P.done=false;tab("say");const st=steps();if(st)stepSpeak(st[0])}
 // ---- menu
 function renderSettings(){
   $("#settings").innerHTML=`<div style="font-weight:700;margin-bottom:6px">⚙ 設定（会話練習・AI練習で使います）</div>
@@ -369,15 +359,17 @@ function renderSettings(){
   });
 }
 function renderMenu(){
-  $("#goPractice").onclick=startPractice;
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
         <div class="t"><div class="en">${i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${i.p.toFixed(2)}</div>${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(i.p*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
-        <div class="qty"><button data-d="-1" data-id="${i.id}">−</button><span>${S.cart[i.id]||0}</span><button data-d="1" data-id="${i.id}">＋</button></div>
+        <div class="qty"><label class="ck"><input type="checkbox" data-ck="${i.id}" ${S.cart[i.id]?"checked":""}> 注文</label>${S.cart[i.id]?`<button data-d="-1" data-id="${i.id}">−</button><span>${S.cart[i.id]}</span><button data-d="1" data-id="${i.id}">＋</button>`:""}</div>
       </div>`).join("");
   }
   document.querySelectorAll(".spk").forEach(b=>b.onclick=()=>speak(ALL.find(i=>i.id===b.dataset.spk).en));
+  document.querySelectorAll("[data-ck]").forEach(c=>c.onchange=()=>{
+    c.checked?S.cart[c.dataset.ck]=1:delete S.cart[c.dataset.ck];renderMenu();renderSum();
+  });
   document.querySelectorAll(".qty button").forEach(b=>b.onclick=()=>{
     const id=b.dataset.id,n=Math.max(0,(S.cart[id]||0)+ +b.dataset.d);
     n?S.cart[id]=n:delete S.cart[id];renderMenu();renderSum();
@@ -405,12 +397,6 @@ function renderSum(){
   $("#sum").innerHTML=n?`${n}点 ・ 税別<b>合計 $${t.toFixed(2)}</b><span style="font-size:12px">残り $${(BUDGET-t).toFixed(2)}</span>`:"カートは空です";
   $("#judge").innerHTML=judgeHTML();
 }
-function billHTML(){
-  const rows=Object.entries(S.cart).map(([id,q])=>{const i=ALL.find(x=>x.id===id);return `<div><span>${i.ja} × ${q}</span><span>$${(i.p*q).toFixed(2)}</span></div>`}).join("");
-  const t=Object.entries(S.cart).reduce((a,[id,q])=>a+ALL.find(i=>i.id===id).p*q,0);
-  return `<div class="bill">${rows}<div class="tot"><span>合計(税別)</span><span>$${t.toFixed(2)}</span></div></div>`+judgeHTML();
-}
-
 // ---- chips
 function chips(el,items,isOn,onClick){
   el.innerHTML=items.map((it,i)=>`<div class="chip ${isOn(it)?"on":""}" data-i="${i}">${it.label} <span class="cs" data-s="${i}" role="button" aria-label="発音">🔊</span>${it.sub?`<small>${it.sub}</small>`:""}</div>`).join("");
@@ -425,101 +411,6 @@ function renderCustom(){
   chips($("#c-place"),[{v:"here",label:"For here",sub:"店内"},{v:"go",label:"To go",sub:"持ち帰り"}],i=>S.place===i.v,i=>S.place=i.v);
   chips($("#c-allergy"),ALLERGY.map(m=>({v:m[0],label:m[0]||"None",sub:m[1]})),i=>S.allergy===i.v,i=>S.allergy=i.v);
 }
-
-// ---- sentence building
-const NUM=["","a","two","three","four","five","six"];
-// 文中では小文字(Coke・Spriteだけ大文字)。"fries"系は "an order of ..." と言う
-const plain=en=>en.replace(/[A-Za-z]+/g,w=>/^(Coke|Sprite)$/.test(w)?w:w.toLowerCase());
-function nameQ(i,q){
-  const n=plain(i.en);
-  if(/(fries|rings|nuggets)$/.test(n))return q===1?`an order of ${n}`:`${NUM[q]||q} orders of ${n}`;
-  if(q===1)return (/^[aeiou]/i.test(n)?"an ":"a ")+n;
-  return (NUM[q]||q)+" "+(n.endsWith("s")||n==="water"?n:n+"s");
-}
-function sizeEn(){return S.size[0].toUpperCase()+S.size.slice(1)}
-const cap=t=>t[0].toUpperCase()+t.slice(1);
-// 選んだ注文から、店員の質問とあなたの答えを順に作る
-function steps(){
-  const items=Object.entries(S.cart).map(([id,q])=>({i:ALL.find(x=>x.id===id),q}));
-  if(!items.length)return null;
-  const hasB=items.some(x=>MENU.burger.includes(x.i)),hasD=items.some(x=>MENU.drink.includes(x.i));
-  const parts=items.map(x=>nameQ(x.i,x.q));
-  const joined=parts.length>1?parts.slice(0,-1).join(", ")+" and "+parts.at(-1):parts[0];
-  const st=[{c:null,y:[U(`${cap(joined)}, please.`,`I want ${joined}, please.`,`Hi! Can I get ${joined}, please?`),items.map(x=>`${x.i.ja}×${x.q}`).join("、")+" をください"]}];
-  if(hasB)st.push({c:L("combo"),y:S.combo?[U("Yes, please.","Yes, a combo, please.","Yes, make it a combo, please."),"はい、セットでお願いします"]:[U("No, thank you.","No, just the burger.","No, just the burger is fine, thanks."),"いえ、バーガーだけで大丈夫です"]});
-  if(S.combo||hasD)st.push({c:L("size"),y:[U(`${sizeEn()}, please.`,`${sizeEn()}, please.`,`${sizeEn()} is fine.`),"サイズを伝えます"]});
-  if(hasB&&S.mods.size){const m=[...S.mods];st.push({c:L("mods"),y:[cap(m.join(", "))+", please.",m.map(x=>MODS.find(y=>y[0]===x)[1]).join("、")]})}
-  if(hasB&&S.cook)st.push({c:L("cook"),y:[cap(S.cook)+", please.",COOK.find(c=>c[0]===S.cook)[1]+"でお願いします"]});
-  if(S.allergy)st.push({c:L("allergy"),y:[U(`I have ${S.allergy}.`,`I have ${S.allergy}. Is this OK?`,`I have ${S.allergy}. Is this okay?`),ALLERGY.find(a=>a[0]===S.allergy)[1]+"アレルギーがあります。大丈夫ですか？"]});
-  st.push({c:L("more"),y:[U("No, thank you.","That's all, thank you.","That's it, thanks."),"以上です"]});
-  st.push({c:L("place"),y:S.place==="here"?["For here, please.","店内で"]:["To go, please.","持ち帰りで"]});
-  st.push({c:L("pay"),y:["Card, please.","カードで"]});
-  st.push({c:L("end"),y:[U("Thank you!","Thank you. Bye!","Thanks, you too!"),"ありがとう（お礼を言って終わり）"]});
-  return st;
-}
-const stepSpeak=st=>{if(st&&st.c)clerkSpeak(st.c[0])};
-// 会話中は文字を出さず、メニューを見ながら声で答える。会話が終わってから記録を表示する。
-function menuRefHTML(){
-  const sec=(t,k)=>`<div class="ct">${t}</div><div class="mref">`+MENU[k].map(i=>{const q=S.cart[i.id];
-    return `<div class="mi ${q?"sel":""}"><span>${i.e} ${i.en}</span><span>${q?`✅ ×${q}`:"$"+i.p.toFixed(2)}</span></div>`}).join("")+`</div>`;
-  const ch=[`Size: ${sizeEn()}`,S.combo?"Combo":"No combo",S.place==="here"?"For here":"To go",...S.mods,S.cook&&`Cooked: ${S.cook}`,S.allergy&&`Allergy: ${S.allergy}`].filter(Boolean);
-  return `<div class="cart" style="position:static"><div style="font-weight:700;margin-bottom:6px">📋 メニュー（✅ があなたの注文）</div>`+
-    sec("BURGERS","burger")+sec("SIDES","side")+sec("DRINKS","drink")+
-    `<div class="ct" style="margin-top:8px">あなたの選んだこと</div><div style="font-size:13px;font-weight:700">${ch.join(" ・ ")}</div></div>`;
-}
-const P={n:0,heard:{},done:false};
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-function renderSay(){
-  const st=steps();
-  if(!st){$("#out").innerHTML='<div class="empty">まず「① メニュー」で注文したいものを選んでください</div>';return}
-  if(P.n>=st.length)P.n=st.length-1;
-  const head=`<div class="ct" style="font-size:12px;color:var(--sub);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span>${PERSONAS[PERSONA].label} ・ ${SPEEDS[SPEED].label} ・ ${LEVELS[LV].label}</span><button class="btn ghost" id="pSet" style="padding:4px 10px;font-size:12px">⚙ 設定を変える</button></div>`;
-  let h=head;
-  if(!P.done){
-    const s=st[P.n],said=P.heard[P.n];
-    h+=`<div class="say"><div class="ct" style="font-size:12px;color:var(--sub)">${P.n+1} / ${st.length}</div>
-      <div style="font-size:17px;font-weight:700;margin:6px 0">${s.c?"🧑‍🍳 店員さんの声を聞いて、メニューを見ながら英語で答えましょう":"🙋 メニューを見ながら、英語で注文を伝えましょう"}</div>
-      <div style="font-size:12px;color:var(--sub)">会話の文字は、最後にまとめて表示します</div>
-      <div class="row">${s.c?`<button class="btn ghost" id="pHear">🔊 もう一度聞く</button>`:""}${SR?`<button class="btn alt" id="pMic">🎤 話す</button>`:""}<button class="btn" id="pNext">${P.n<st.length-1?"次へ ▶":"終わる ✔"}</button></div>
-      ${said?`<div class="heard ok" style="margin-top:8px">✅ 話しました</div>`:""}</div>`+menuRefHTML();
-  }else{
-    h+=`<div class="judge ok"><b>🎉 おつかれさま！</b><br>会話の記録です。お手本と比べてみましょう。</div>`+
-      st.map((s,k)=>{const hd=P.heard[k];return `<div class="dlg">`+
-        (s.c?`<div class="ln"><div class="who">🧑‍🍳</div><div class="tx"><b>${s.c[0]}</b><small>${s.c[1]}</small></div><button data-pc="${k}">🔊</button></div>`:"")+
-        `<div class="ln you"><div class="who">🙋</div><div class="tx"><b>${s.y[0]}</b><small>${s.y[1]}（お手本）</small>
-          <small style="margin-top:4px;color:${hd&&hd.ok?"#126b32":"var(--ink)"}">あなた: ${hd?hd.t:"（録音なし）"}${hd&&hd.ok?" ✅":""}</small></div><button data-py="${k}">🔊</button></div></div>`}).join("")+
-      `<div class="row"><button class="btn" id="pReset">もう一度やる</button><button class="btn ghost" id="pBack">← メニューへ</button></div>`;
-  }
-  $("#out").innerHTML=h;
-  $("#pSet").onclick=()=>{tab("words")};
-  document.querySelectorAll("[data-pc]").forEach(b=>b.onclick=()=>clerkSpeak(st[b.dataset.pc].c[0]));
-  document.querySelectorAll("[data-py]").forEach(b=>b.onclick=()=>speak(st[b.dataset.py].y[0]));
-  const bind=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
-  bind("#pHear",()=>stepSpeak(st[P.n]));
-  bind("#pMic",()=>listenFor(P.n,st));
-  bind("#pNext",()=>{
-    speechSynthesis.cancel();
-    if(P.n<st.length-1){P.n++;renderSay();stepSpeak(st[P.n]);scrollTo(0,0)}
-    else{P.done=true;renderSay();scrollTo(0,0)}
-  });
-  bind("#pReset",()=>{P.n=0;P.heard={};P.done=false;renderSay();stepSpeak(steps()[0]);scrollTo(0,0)});
-  bind("#pBack",()=>tab("menu"));
-}
-// 自分の声をブラウザで文字にして、あとで比べる(会話中は表示しない)
-function listenFor(k,st){
-  speechSynthesis.cancel();
-  const rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;
-  const norm=t=>t.toLowerCase().replace(/[^a-z0-9 ]/g,"").split(/\s+/).filter(Boolean);
-  const mic=$("#pMic");if(mic)mic.textContent="🎙 聞いています…";
-  rec.onresult=e=>{
-    const t=e.results[0][0].transcript,want=norm(st[k].y[0]),got=new Set(norm(t));
-    const hit=want.filter(w=>got.has(w)).length;
-    P.heard[k]={t,ok:hit/want.length>=.7};renderSay();
-  };
-  rec.onerror=()=>{if(mic)mic.textContent="🎤 話す（聞き取れませんでした。もう一度）"};
-  rec.start();
-}
-$("#closeShow").onclick=()=>$("#show").classList.remove("on");
 
 // ---- talk
 const QA=[
@@ -667,6 +558,7 @@ function vStop(){
   V.pc=V.dc=V.mic=null;V.on=false;$("#vMic").disabled=true;
 }
 async function vStart(){
+  $("#menuHint").style.display="none";$("#menuBox").style.display="block"; // 会話スタートと同時にメニュー表を出す
   vStop();V.show=false;V.order=[];V.items={};V.recs={};V.chunks={};$("#vLog").innerHTML="";
   vStatus("接続中…（マイクの許可を求められたら「許可」）");
   try{
@@ -725,7 +617,7 @@ function orderHint(){
 }
 $("#vStart").onclick=vStart;
 $("#vEnd").onclick=async()=>{vStop();V.show=true;vRender();await vSave()};
-$("#vReset").onclick=()=>{vStop();V.show=false;V.order=[];V.items={};V.chunks={};$("#vLog").innerHTML="";vStatus("")};
+$("#vReset").onclick=()=>{$("#menuBox").style.display="none";$("#menuHint").style.display="";vStop();V.show=false;V.order=[];V.items={};V.chunks={};$("#vLog").innerHTML="";vStatus("")};
 $("#vMic").onclick=()=>{
   if(!V.mic)return;const t=V.mic.getTracks()[0];t.enabled=!t.enabled;
   $("#vMic").textContent=t.enabled?"🎤":"🔇";vStatus(t.enabled?"マイクをオンにしました":"マイクをオフにしました");
