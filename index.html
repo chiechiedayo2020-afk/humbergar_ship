@@ -252,9 +252,9 @@ const ALLERGY=[["","なし"],["a peanut allergy","ピーナッツ"],["a gluten a
 
 const S={cart:{},sizes:{},sticker:"",combo:false,mods:new Set(),cook:"",place:"here",allergy:""};
 const $=s=>document.querySelector(s);
-// サイズ(サイドとドリンクだけ)。中が基本の値段で、小は−$0.50、大は+$0.75
+// サイズ(バーガー・サイド・ドリンク。トッピングは無し)。中が基本の値段で、小は−$0.50、大は+$0.75
 const SZ=[["small","小","S",-.5],["medium","中","M",0],["large","大","L",.75]];
-const isSized=i=>MENU.side.includes(i)||MENU.drink.includes(i);
+const isSized=i=>MENU.burger.includes(i)||MENU.side.includes(i)||MENU.drink.includes(i);
 const sizeOf=id=>S.sizes[id]||"medium";
 const unit=i=>i.p+(isSized(i)?SZ.find(z=>z[0]===sizeOf(i.id))[3]:0);
 
