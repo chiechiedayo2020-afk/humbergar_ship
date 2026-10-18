@@ -125,8 +125,7 @@
     <button data-tab="words" class="on">① 📖単語</button>
     <button data-tab="custom">② 好み</button>
     <button data-tab="talk">③ 会話集</button>
-    <button data-tab="menu">④ メニュー</button>
-    <button data-tab="voice">⑤ 🎤AI練習</button>
+    <button data-tab="menu">④ メニュー＆🎤AI練習</button>
   </nav>
 </header>
 <main>
@@ -138,6 +137,20 @@
     <div id="judge"></div>
   </div>
   <button class="btn install" id="install">📲 このアプリをインストール</button>
+  <div class="cart" id="aiPanel" style="position:static;margin:14px 0"><div style="font-weight:700;margin-bottom:6px">🎤 AI店員と話す（speech-to-speech）</div>
+  <p style="font-size:13px;color:var(--sub);margin-top:0">下のメニューを見ながら、AIの店員さんと英語で話そう。スタートすると店員が先に挨拶します。会話の文字は、終わってからまとめて表示します。</p>
+  <div class="row" style="margin:0 0 12px">
+    <button class="btn" id="vStart">▶ 会話スタート</button>
+    <button class="btn alt" id="vEnd">終了して保存</button>
+    <button class="btn ghost" id="vReset">やり直し</button>
+  </div>
+  <div id="vLog"></div>
+  <div id="vStatus" style="text-align:center;color:var(--sub);font-size:13px;margin:8px 0"></div>
+  <div style="text-align:center">
+    <button class="btn" id="vMic" style="width:84px;height:84px;border-radius:50%;font-size:32px" disabled>🎤</button>
+    <div style="font-size:12px;color:var(--sub);margin-top:6px">マイクのオン／オフ（会話中は自動で聞き取ります）</div>
+  </div>
+</div>
   <h2>BURGERS</h2><div id="l-burger"></div>
   <h2>SIDES</h2><div id="l-side"></div>
   <h2>DRINKS</h2><div id="l-drink"></div>
@@ -166,20 +179,7 @@
   <div class="row"><button class="btn ghost" id="freeSpeak">🔊 読み上げ</button></div>
   <h2>便利フレーズ</h2><div id="useful"></div>
 </section>
-<section id="voice">
-  <p style="font-size:13px;color:var(--sub)">AIの店員さんと、声だけで自然に会話します（本物のspeech-to-speech）。スタートを押したら、マイクで英語を話すだけ。話し終わると、店員が声で返事します。会話の文字は、会話が終わってからまとめて表示します（保存もされます）。<br>店員のタイプ・スピード・英検レベルは、①メニューの設定で変えられます。選んだ注文も、お題になります。</p>
-  <div class="row" style="margin:0 0 12px">
-    <button class="btn" id="vStart">▶ 会話スタート</button>
-    <button class="btn alt" id="vEnd">終了して保存</button>
-    <button class="btn ghost" id="vReset">やり直し</button>
-  </div>
-  <div id="vLog"></div>
-  <div id="vStatus" style="text-align:center;color:var(--sub);font-size:13px;margin:8px 0"></div>
-  <div style="text-align:center">
-    <button class="btn" id="vMic" style="width:84px;height:84px;border-radius:50%;font-size:32px" disabled>🎤</button>
-    <div style="font-size:12px;color:var(--sub);margin-top:6px">マイクのオン／オフ（会話中は自動で聞き取ります）</div>
-  </div>
-</section>
+
 <section id="words" class="on">
   <div class="cart" id="settings" style="position:static;margin-bottom:12px"></div>
   <p style="font-size:13px;color:var(--sub)">上の設定で、店員さんのタイプ・スピード・レベルを選べます。タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
