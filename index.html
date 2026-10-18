@@ -620,7 +620,7 @@ async function vStart(){
   vStatus("接続中…（マイクの許可を求められたら「許可」）");
   try{
     const r=await fetch("/api/session",{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({persona:PERSONA,level:LV,speed:SPEED_RT[SPEED],order_hint:orderHint()})});
+      body:JSON.stringify({persona:PERSONA,level:LV,speed:SPEED_RT[SPEED],order_hint:orderHint(),menu:menuForClerk()})});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
     V.mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
     const pc=V.pc=new RTCPeerConnection();
@@ -667,6 +667,12 @@ async function vSave(){
     const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));
     a.download="conversation.txt";a.click();vStatus("💾 ダウンロードしました（サーバー保存失敗: "+e.message+"）");
   }
+}
+// メニュー表の内容(名前・値段・サイズ)を、そのままAI店員に渡す
+function menuForClerk(){
+  const m={};
+  for(const k in MENU)m[k]=MENU[k].map(i=>({name:i.en,price:i.p,sized:isSized(i)}));
+  return {items:m,sizeDelta:{small:SZ[0][3],medium:SZ[1][3],large:SZ[2][3]},stickerMin:STICKER_MIN,stickers:STICKERS.map(z=>z[2])};
 }
 function orderHint(){
   const b=Object.entries(S.cart).map(([id,q])=>{const i=ALL.find(x=>x.id===id);return `${q} x ${isSized(i)?sizeOf(id)+" ":""}${i.en}`}).join(", ");
