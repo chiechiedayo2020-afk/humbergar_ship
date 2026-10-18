@@ -137,10 +137,9 @@
 <header>
   <h1>🍔 Burger Order <small style="font-weight:400;opacity:.85">ハンバーガー注文アプリ</small></h1>
   <nav>
-    <button data-tab="words" class="on">① 📖単語</button>
-    <button data-tab="custom">② 好み</button>
-    <button data-tab="talk">③ 会話集</button>
-    <button data-tab="menu">④ メニュー＆🎤AI練習</button>
+    <button data-tab="words" class="on">① 📖単語・好み</button>
+    <button data-tab="talk">② 会話集</button>
+    <button data-tab="menu">③ メニュー＆🎤AI練習</button>
   </nav>
 </header>
 <main>
@@ -176,13 +175,6 @@
   </div>
 </section>
 
-<section id="custom">
-  <h2>MAKE IT A COMBO? セットにする？</h2><div class="chips" id="c-combo"></div>
-  <h2>CUSTOMIZE バーガーの好み(全バーガー共通)</h2><div class="chips" id="c-mods"></div>
-  <h2>COOKING 焼き加減</h2><div class="chips" id="c-cook"></div>
-  <h2>FOR HERE / TO GO 店内 or 持ち帰り</h2><div class="chips" id="c-place"></div>
-  <h2>ALLERGY アレルギー</h2><div class="chips" id="c-allergy"></div>
-</section>
 
 
 <section id="talk">
@@ -198,6 +190,12 @@
   <div class="cart" id="settings" style="position:static;margin-bottom:12px"></div>
   <p style="font-size:13px;color:var(--sub)">上の設定で、店員さんのタイプ・スピード・レベルを選べます。タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
   <div id="wordList"></div>
+  <h2 style="font-size:17px;color:var(--accent);margin-top:28px">好み（選ぶと、会話の注文に反映されます）</h2>
+  <h2>MAKE IT A COMBO? セットにする？</h2><div class="chips" id="c-combo"></div>
+  <h2>CUSTOMIZE バーガーの好み(全バーガー共通)</h2><div class="chips" id="c-mods"></div>
+  <h2>COOKING 焼き加減</h2><div class="chips" id="c-cook"></div>
+  <h2>FOR HERE / TO GO 店内 or 持ち帰り</h2><div class="chips" id="c-place"></div>
+  <h2>ALLERGY アレルギー</h2><div class="chips" id="c-allergy"></div>
   <h2>簡単な会話リスト</h2>
   <div id="dlgList"></div>
 </section>
@@ -362,7 +360,7 @@ const U=(a,b,c)=>LV===5?a:LV===4?b:c;
 function tab(n){
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===n));
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===n));
-  document.querySelector(".bar").style.display=["menu","custom"].includes(n)?"flex":"none";
+  document.querySelector(".bar").style.display=["menu"].includes(n)?"flex":"none";
   scrollTo(0,0);
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
