@@ -47,6 +47,11 @@
   .bill .tot{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;font-weight:700;font-size:17px;color:var(--accent)}
   .qty{display:flex;align-items:center;gap:8px}
   .qty button{width:32px;height:32px;border-radius:50%;border:1px solid var(--accent);background:#fff;color:var(--accent);font-size:18px;font-weight:700}
+  .szs{display:flex;gap:4px;margin-top:4px}
+  .sz{border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink)}
+  .sz small{display:block;font-size:10px;font-weight:400;color:var(--sub)}
+  .sz.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sz.on small{color:#fff}
   .ck{display:flex;align-items:center;gap:4px;font-size:14px;font-weight:700;color:var(--accent);cursor:pointer}
   .ck input{width:24px;height:24px;accent-color:var(--accent)}
   .qty span{min-width:16px;text-align:center;font-weight:700}
@@ -162,7 +167,6 @@
 </section>
 
 <section id="custom">
-  <h2>SIZE (セット/ドリンクのサイズ)</h2><div class="chips" id="c-size"></div>
   <h2>MAKE IT A COMBO? セットにする？</h2><div class="chips" id="c-combo"></div>
   <h2>CUSTOMIZE バーガーの好み(全バーガー共通)</h2><div class="chips" id="c-mods"></div>
   <h2>COOKING 焼き加減</h2><div class="chips" id="c-cook"></div>
@@ -218,7 +222,6 @@ const MENU = {
   ]
 };
 const ALL = Object.values(MENU).flat();
-const SIZES=[["small","Small","S"],["medium","Medium","M"],["large","Large","L"]];
 const MODS=[
   ["no pickles","ピクルス抜き"],["no onions","玉ねぎ抜き"],["no tomato","トマト抜き"],
   ["no mayo","マヨネーズ抜き"],["no cheese","チーズ抜き"],["extra cheese","チーズ追加"],
@@ -228,8 +231,13 @@ const MODS=[
 const COOK=[["","おまかせ"],["well done","ウェルダン"],["medium","ミディアム"]];
 const ALLERGY=[["","なし"],["a peanut allergy","ピーナッツ"],["a gluten allergy","グルテン"],["a dairy allergy","乳製品"],["an egg allergy","卵"]];
 
-const S={cart:{},size:"medium",combo:false,mods:new Set(),cook:"",place:"here",allergy:""};
+const S={cart:{},sizes:{},combo:false,mods:new Set(),cook:"",place:"here",allergy:""};
 const $=s=>document.querySelector(s);
+// サイズ(サイドとドリンクだけ)。中が基本の値段で、小は−$0.50、大は+$0.75
+const SZ=[["small","小","S",-.5],["medium","中","M",0],["large","大","L",.75]];
+const isSized=i=>MENU.side.includes(i)||MENU.drink.includes(i);
+const sizeOf=id=>S.sizes[id]||"medium";
+const unit=i=>i.p+(isSized(i)?SZ.find(z=>z[0]===sizeOf(i.id))[3]:0);
 
 // ---- speech
 const SPEEDS={slow:{label:"🐢 ゆっくり",r:.6},normal:{label:"普通",r:.85},fast:{label:"🐇 早い",r:1.2}};
@@ -362,11 +370,14 @@ function renderMenu(){
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
-        <div class="t"><div class="en">${i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${i.p.toFixed(2)}</div>${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(i.p*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
+        <div class="t"><div class="en">${i.en} <button class="spk" data-spk="${i.id}" aria-label="発音">🔊</button></div><div class="price">$${unit(i).toFixed(2)}</div>${isSized(i)?`<div class="szs">${SZ.map(z=>`<button class="sz ${sizeOf(i.id)===z[0]?"on":""}" data-sz="${i.id}|${z[0]}">${z[1]} ${z[2]}<small>$${(i.p+z[3]).toFixed(2)}</small></button>`).join("")}</div>`:""}${S.cart[i.id]?`<div class="sub">${S.cart[i.id]}個 = $${(unit(i)*S.cart[i.id]).toFixed(2)}</div>`:""}</div>
         <div class="qty"><label class="ck"><input type="checkbox" data-ck="${i.id}" ${S.cart[i.id]?"checked":""}> 注文</label>${S.cart[i.id]?`<button data-d="-1" data-id="${i.id}">−</button><span>${S.cart[i.id]}</span><button data-d="1" data-id="${i.id}">＋</button>`:""}</div>
       </div>`).join("");
   }
   document.querySelectorAll(".spk").forEach(b=>b.onclick=()=>speak(ALL.find(i=>i.id===b.dataset.spk).en));
+  document.querySelectorAll("[data-sz]").forEach(b=>b.onclick=()=>{
+    const [id,z]=b.dataset.sz.split("|");S.sizes[id]=z;renderMenu();renderSum();
+  });
   document.querySelectorAll("[data-ck]").forEach(c=>c.onchange=()=>{
     c.checked?S.cart[c.dataset.ck]=1:delete S.cart[c.dataset.ck];renderMenu();renderSum();
   });
@@ -377,7 +388,7 @@ function renderMenu(){
 }
 // ---- mission: 予算$50で3人分の昼食(バーガー・ドリンクを人数分)
 const BUDGET=50,PEOPLE=3;
-function total(){return Object.entries(S.cart).reduce((a,[id,q])=>a+ALL.find(i=>i.id===id).p*q,0)}
+function total(){return Object.entries(S.cart).reduce((a,[id,q])=>a+unit(ALL.find(i=>i.id===id))*q,0)}
 function judge(){
   const cnt=k=>Object.entries(S.cart).reduce((a,[id,q])=>a+(MENU[k].some(i=>i.id===id)?q:0),0);
   const b=cnt("burger"),d=cnt("drink"),t=total(),left=BUDGET-t;
@@ -404,7 +415,6 @@ function chips(el,items,isOn,onClick){
   el.querySelectorAll(".cs").forEach(b=>b.onclick=e=>{e.stopPropagation();speak(items[b.dataset.s].label)});
 }
 function renderCustom(){
-  chips($("#c-size"),SIZES.map(s=>({v:s[0],label:s[1],sub:s[2]})),i=>S.size===i.v,i=>S.size=i.v);
   chips($("#c-combo"),[{v:true,label:"Yes, combo",sub:"セットにする"},{v:false,label:"No, just the burger",sub:"単品"}],i=>S.combo===i.v,i=>S.combo=i.v);
   chips($("#c-mods"),MODS.map(m=>({v:m[0],label:m[0],sub:m[1]})),i=>S.mods.has(i.v),i=>S.mods.has(i.v)?S.mods.delete(i.v):S.mods.add(i.v));
   chips($("#c-cook"),COOK.map(m=>({v:m[0],label:m[0]||"No preference",sub:m[1]})),i=>S.cook===i.v,i=>S.cook=i.v);
@@ -612,8 +622,8 @@ async function vSave(){
   }
 }
 function orderHint(){
-  const b=Object.entries(S.cart).map(([id,q])=>`${q} x ${ALL.find(i=>i.id===id).en}`).join(", ");
-  return b?`${b}; size ${S.size}; ${S.combo?"combo":"no combo"}; ${S.place==="here"?"for here":"to go"}`:"";
+  const b=Object.entries(S.cart).map(([id,q])=>{const i=ALL.find(x=>x.id===id);return `${q} x ${isSized(i)?sizeOf(id)+" ":""}${i.en}`}).join(", ");
+  return b?`${b}; ${S.combo?"combo":"no combo"}; ${S.place==="here"?"for here":"to go"}`:"";
 }
 $("#vStart").onclick=vStart;
 $("#vEnd").onclick=async()=>{vStop();V.show=true;vRender();await vSave()};
