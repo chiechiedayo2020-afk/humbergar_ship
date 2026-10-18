@@ -179,7 +179,7 @@
 </section>
 <section id="words">
   <p style="font-size:13px;color:var(--sub)">タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
-  <label style="font-size:13px"><input type="checkbox" id="slow"> ゆっくり再生</label>
+  <div id="wSpeed"></div>
   <div id="wordList"></div>
   <h2>簡単な会話リスト</h2>
   <div id="dlgList"></div>
@@ -236,12 +236,24 @@ const S={cart:{},size:"medium",combo:false,mods:new Set(),cook:"",place:"here",a
 const $=s=>document.querySelector(s);
 
 // ---- speech
+const SPEEDS={slow:{label:"🐢 ゆっくり",r:.6},normal:{label:"普通",r:.85},fast:{label:"🐇 早い",r:1.2}};
+let SPEED="normal";
+try{const p=localStorage.getItem("speed");if(SPEEDS[p])SPEED=p}catch(e){}
+function speedHTML(){
+  return `<div class="ct" style="font-size:12px;color:var(--sub)">話すスピード</div><div class="chips speedbar" style="margin-bottom:10px">`+
+    Object.entries(SPEEDS).map(([k,v])=>`<div class="chip ${k===SPEED?"on":""}" data-speed="${k}">${v.label}</div>`).join("")+`</div>`;
+}
+function bindSpeed(redraw){
+  document.querySelectorAll("[data-speed]").forEach(c=>c.onclick=()=>{
+    SPEED=c.dataset.speed;try{localStorage.setItem("speed",SPEED)}catch(e){}
+    redraw();
+  });
+}
 function speak(t,o={}){
   if(!window.speechSynthesis)return alert("このブラウザは音声再生に対応していません");
   speechSynthesis.cancel();
-  const slow=(document.getElementById("slow")||{}).checked;
   const u=new SpeechSynthesisUtterance(t);u.lang="en-US";
-  u.rate=(slow?.6:.85)*(o.rate||1);u.pitch=o.pitch||1;
+  u.rate=SPEEDS[SPEED].r*(o.rate||1);u.pitch=o.pitch||1;
   if(o.gender){const v=pickVoice(o.gender);if(v)u.voice=v}
   speechSynthesis.speak(u);
 }
@@ -412,7 +424,7 @@ function renderSay(){
   if(!st){$("#out").innerHTML='<div class="empty">まず「① メニュー」で注文したいものを選んでください</div>';return}
   if(P.n>=st.length)P.n=st.length-1;
   let h=`<div class="ct" style="font-size:12px;color:var(--sub)">店員さんのタイプ</div><div class="chips" id="persona" style="margin-bottom:10px">`+
-    Object.entries(PERSONAS).map(([k,p])=>`<div class="chip ${k===PERSONA?"on":""}" data-persona="${k}">${p.label}</div>`).join("")+`</div>`+cartHTML();
+    Object.entries(PERSONAS).map(([k,p])=>`<div class="chip ${k===PERSONA?"on":""}" data-persona="${k}">${p.label}</div>`).join("")+`</div>`+speedHTML()+cartHTML();
   for(let k=0;k<=P.n;k++){
     const s=st[k],cur=k===P.n,heard=P.heard[k];
     h+=`<div class="bub clerk"><div class="en">🧑‍🍳 ${s.c[0]}</div><div class="ja">${s.c[1]}</div>
@@ -425,6 +437,7 @@ function renderSay(){
     (P.n<st.length-1?`<button class="btn" id="pNext">次へ ▶</button>`:`<div class="judge ok" style="width:100%"><b>🎉 おつかれさま！</b><br>最後まで練習できました。</div>`)+
     `<button class="btn ghost" id="pReset">最初から</button><button class="btn ghost" id="pBack">← メニューへ</button></div>`+judgeHTML();
   $("#out").innerHTML=h;
+  bindSpeed(()=>{renderSay();clerkSpeak(steps()[P.n].c[0])});
   document.querySelectorAll("[data-persona]").forEach(c=>c.onclick=()=>{
     PERSONA=c.dataset.persona;try{localStorage.setItem("persona",PERSONA)}catch(e){}
     renderSay();clerkSpeak(steps()[P.n].c[0]);
@@ -532,6 +545,7 @@ const DLG=[
     ["y","I have a peanut allergy.","ピーナッツアレルギーがあります"]]},
 ];
 function renderWords(){
+  $("#wSpeed").innerHTML=speedHTML();bindSpeed(()=>{renderWords();speak("Hello, can I get a cheeseburger, please?")});
   $("#wordList").innerHTML=WORDS.map((g,gi)=>`<h2>${g[0]}</h2><div class="wd">${g[1].map((w,wi)=>`<button data-w="${gi}-${wi}">🔊 ${w[0]}<small>${w[1]}</small></button>`).join("")}</div>`).join("");
   document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{const[g,w]=b.dataset.w.split("-");speak(WORDS[g][1][w][0])});
   $("#dlgList").innerHTML=DLG.map((d,di)=>`<div class="dlg"><h3>${d.t}</h3>${d.l.map((x,li)=>`
