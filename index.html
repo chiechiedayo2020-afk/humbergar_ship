@@ -163,6 +163,7 @@
     <h2>BURGERS</h2><div id="l-burger"></div>
     <h2>SIDES</h2><div id="l-side"></div>
     <h2>DRINKS</h2><div id="l-drink"></div>
+    <h2>TOPPINGS</h2><div id="l-topping"></div>
   </div>
 </section>
 
@@ -219,6 +220,16 @@ const MENU = {
     {id:"water",en:"Water",ja:"水",p:1.5,e:"💧"},
     {id:"shake",en:"Vanilla Shake",ja:"バニラシェイク",p:4.5,e:"🍦"},
     {id:"coffee",en:"Coffee",ja:"コーヒー",p:2.5,e:"☕"},
+  ],
+  topping:[
+    {id:"xcheese",en:"Extra Cheese",ja:"チーズ追加",p:1,e:"🧀"},
+    {id:"xbacon",en:"Bacon",ja:"ベーコン",p:1.5,e:"🥓"},
+    {id:"avocado",en:"Avocado",ja:"アボカド",p:1.75,e:"🥑"},
+    {id:"egg",en:"Fried Egg",ja:"目玉焼き",p:1.25,e:"🍳"},
+    {id:"mushroom",en:"Mushrooms",ja:"マッシュルーム",p:1,e:"🍄"},
+    {id:"onions",en:"Grilled Onions",ja:"グリルオニオン",p:.75,e:"🧅"},
+    {id:"jalapeno",en:"Jalapeños",ja:"ハラペーニョ",p:.75,e:"🌶️"},
+    {id:"patty",en:"Extra Patty",ja:"パティ追加",p:3,e:"🍔"},
   ]
 };
 const ALL = Object.values(MENU).flat();
@@ -464,6 +475,7 @@ const WORDS=[
   ["バーガー",MENU.burger.map(i=>[i.en,i.ja])],
   ["サイド",MENU.side.map(i=>[i.en,i.ja])],
   ["ドリンク",MENU.drink.map(i=>[i.en,i.ja])],
+  ["トッピング",MENU.topping.map(i=>[i.en,i.ja])],
   ["サイズ",[["Small","小"],["Medium","中"],["Large","大"]]],
   ["好み(抜く・足す)",MODS.map(m=>[m[0],m[1]])],
   ["焼き加減",[["Medium","ミディアム"],["Well done","ウェルダン"]]],
