@@ -122,23 +122,22 @@
 <header>
   <h1>🍔 Burger Order <small style="font-weight:400;opacity:.85">ハンバーガー注文アプリ</small></h1>
   <nav>
-    <button data-tab="menu" class="on">① メニュー</button>
+    <button data-tab="words" class="on">① 📖単語</button>
     <button data-tab="custom">② 好み</button>
     <button data-tab="talk">③ 会話集</button>
-    <button data-tab="voice">④ 🎤AI練習</button>
-    <button data-tab="words">⑤ 📖単語</button>
+    <button data-tab="menu">④ メニュー</button>
+    <button data-tab="voice">⑤ 🎤AI練習</button>
   </nav>
 </header>
 <main>
 
-<section id="menu" class="on">
+<section id="menu">
   <div class="mission">
     <div class="mt">🎒 ミッション</div>
     あなたは、修学旅行でアメリカに来ています。自分を含めて３人の昼食を買うことになり、先生から<b>５０ドル</b>を渡されました。予算の範囲内でグループ３人分の昼食を買ってください。
     <div id="judge"></div>
   </div>
   <button class="btn install" id="install">📲 このアプリをインストール</button>
-  <div class="cart" id="settings" style="position:static;margin-top:14px"></div>
   <h2>BURGERS</h2><div id="l-burger"></div>
   <h2>SIDES</h2><div id="l-side"></div>
   <h2>DRINKS</h2><div id="l-drink"></div>
@@ -181,9 +180,9 @@
     <div style="font-size:12px;color:var(--sub);margin-top:6px">マイクのオン／オフ（会話中は自動で聞き取ります）</div>
   </div>
 </section>
-<section id="words">
-  <p style="font-size:13px;color:var(--sub)">タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
-  <div id="wSpeed"></div>
+<section id="words" class="on">
+  <div class="cart" id="settings" style="position:static;margin-bottom:12px"></div>
+  <p style="font-size:13px;color:var(--sub)">上の設定で、店員さんのタイプ・スピード・レベルを選べます。タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
   <div id="wordList"></div>
   <h2>簡単な会話リスト</h2>
   <div id="dlgList"></div>
@@ -343,6 +342,7 @@ function tab(n){
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===n));
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===n));
   if(n==="say")renderSay();
+  document.querySelector(".bar").style.display=["menu","custom","say"].includes(n)?"flex":"none";
   scrollTo(0,0);
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
@@ -362,7 +362,7 @@ function renderSettings(){
     PERSONA=c.dataset.persona;try{localStorage.setItem("persona",PERSONA)}catch(e){}
     renderSettings();clerkSpeak(L("greet")[0]);
   });
-  bindSpeed(root,()=>{renderSettings();renderWordsSpeed();clerkSpeak(L("greet")[0])});
+  bindSpeed(root,()=>{renderSettings();clerkSpeak(L("greet")[0])});
   root.querySelectorAll("[data-level]").forEach(c=>c.onclick=()=>{
     LV=+c.dataset.level;try{localStorage.setItem("level",LV)}catch(e){}
     renderSettings();clerkSpeak(L("greet")[0]);
@@ -370,7 +370,6 @@ function renderSettings(){
 }
 function renderMenu(){
   $("#goPractice").onclick=startPractice;
-  renderSettings();
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
@@ -492,7 +491,7 @@ function renderSay(){
       `<div class="row"><button class="btn" id="pReset">もう一度やる</button><button class="btn ghost" id="pBack">← メニューへ</button></div>`;
   }
   $("#out").innerHTML=h;
-  $("#pSet").onclick=()=>{tab("menu");$("#settings").scrollIntoView()};
+  $("#pSet").onclick=()=>{tab("words")};
   document.querySelectorAll("[data-pc]").forEach(b=>b.onclick=()=>clerkSpeak(st[b.dataset.pc].c[0]));
   document.querySelectorAll("[data-py]").forEach(b=>b.onclick=()=>speak(st[b.dataset.py].y[0]));
   const bind=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
@@ -602,12 +601,7 @@ const DLG=[
     ["y","Can I get some napkins?","ナプキンをもらえますか?"],
     ["y","I have a peanut allergy.","ピーナッツアレルギーがあります"]]},
 ];
-function renderWordsSpeed(){
-  $("#wSpeed").innerHTML=speedHTML();
-  bindSpeed($("#wSpeed"),()=>{renderWordsSpeed();renderSettings();speak("Hello, can I get a cheeseburger, please?")});
-}
 function renderWords(){
-  renderWordsSpeed();
   $("#wordList").innerHTML=WORDS.map((g,gi)=>`<h2>${g[0]}</h2><div class="wd">${g[1].map((w,wi)=>`<button data-w="${gi}-${wi}">🔊 ${w[0]}<small>${w[1]}</small></button>`).join("")}</div>`).join("");
   document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{const[g,w]=b.dataset.w.split("-");speak(WORDS[g][1][w][0])});
   $("#dlgList").innerHTML=DLG.map((d,di)=>`<div class="dlg"><h3>${d.t}</h3>${d.l.map((x,li)=>`
@@ -744,7 +738,7 @@ addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;
 $("#install").onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$("#install").style.display="none"};
 addEventListener("appinstalled",()=>{$("#install").style.display="none"});
 
-renderMenu();renderSum();renderCustom();renderTalk();renderWords();
+renderSettings();renderMenu();renderSum();renderCustom();renderTalk();renderWords();tab("words");
 </script>
 </body>
 </html>
