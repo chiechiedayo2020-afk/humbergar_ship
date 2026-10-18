@@ -164,9 +164,9 @@
   <h2>便利フレーズ</h2><div id="useful"></div>
 </section>
 <section id="voice">
-  <p style="font-size:13px;color:var(--sub)">AIの店員さんと声で注文の練習。マイクを押して英語で話すと、店員が声で返事します。<br>（①②で選んだ注文内容を、練習のお題にします）</p>
+  <p style="font-size:13px;color:var(--sub)">AIの店員さんと、声だけで自然に会話します（本物のspeech-to-speech）。スタートを押したら、マイクで英語を話すだけ。話し終わると、店員が声で返事します。<br>店員のタイプ・スピード・英検レベルは、①メニューの設定で変えられます。選んだ注文も、お題になります。</p>
   <div class="row" style="margin:0 0 12px">
-    <button class="btn" id="vStart">▶ 練習スタート</button>
+    <button class="btn" id="vStart">▶ 会話スタート</button>
     <button class="btn alt" id="vEnd">終了して保存</button>
     <button class="btn ghost" id="vReset">やり直し</button>
   </div>
@@ -174,9 +174,8 @@
   <div id="vStatus" style="text-align:center;color:var(--sub);font-size:13px;margin:8px 0"></div>
   <div style="text-align:center">
     <button class="btn" id="vMic" style="width:84px;height:84px;border-radius:50%;font-size:32px" disabled>🎤</button>
-    <div style="font-size:12px;color:var(--sub);margin-top:6px">押して話す／終わると自動で送信</div>
+    <div style="font-size:12px;color:var(--sub);margin-top:6px">マイクのオン／オフ（会話中は自動で聞き取ります）</div>
   </div>
-  <label style="display:block;text-align:center;margin-top:12px;font-size:13px"><input type="checkbox" id="vAuto" checked> 返事のあと自動でマイクをオン</label>
 </section>
 <section id="words">
   <p style="font-size:13px;color:var(--sub)">タップすると発音が聞けます。まず単語、次に簡単な会話を練習しましょう。</p>
@@ -455,6 +454,7 @@ function steps(){
   st.push({c:L("end"),y:[U("Thank you!","Thank you. Bye!","Thanks, you too!"),"ありがとう（お礼を言って終わり）"]});
   return st;
 }
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const P={n:0,heard:{}};
 function cartHTML(){
   return `<div class="cart"><div class="ct">あなたの注文（見ながら話そう）</div>`+Object.entries(S.cart).map(([id,q])=>{const i=ALL.find(x=>x.id===id);return `<div class="ci"><span>${i.e} ${i.en}</span><span>× ${q}</span></div>`}).join("")+`</div>`;
@@ -595,102 +595,123 @@ function renderWords(){
   document.querySelectorAll("[data-all]").forEach(b=>b.onclick=()=>speak(DLG[b.dataset.all].l.map(x=>x[1]).join(" ")));
 }
 
-// ---- voice roleplay (speech-to-speech: 音声認識 → Claude API → 音声合成)
-const V={msgs:[],on:false,rec:null,busy:false,log:[]};
+// ---- voice roleplay (本物のspeech-to-speech: OpenAI Realtime API / WebRTC)
+const V={pc:null,dc:null,mic:null,audio:null,order:[],items:{},recs:{},chunks:{},on:false};
+const SPEED_RT={slow:.75,normal:1,fast:1.3};
 const toB64=b=>new Promise(res=>{const f=new FileReader();f.onload=()=>res(f.result.split(",")[1]);f.readAsDataURL(b)});
-async function vSave(){
-  if(!V.log.length)return vStatus("保存する会話がありません");
-  await new Promise(r=>setTimeout(r,300)); // 録音の停止処理を待つ
-  const audio=[];let n=0;
-  for(const l of V.log){
-    if(l.who==="you"&&l.audio&&l.audio.blob&&l.audio.blob.size){
-      const ext=l.audio.blob.type.includes("mp4")?"m4a":l.audio.blob.type.includes("ogg")?"ogg":"webm";
-      l.file=`turn-${String(++n).padStart(2,"0")}-you.${ext}`;
-      audio.push({name:l.file,b64:await toB64(l.audio.blob)});
-    }
+function vStatus(t){$("#vStatus").textContent=t}
+function vRender(){
+  $("#vLog").innerHTML=V.order.map(id=>{const m=V.items[id];
+    return m.who==="you"
+      ?`<div class="bub you"><div class="ja">🙋 あなた</div><div class="en" style="font-size:16px">${m.text||"…"}</div></div>`
+      :`<div class="bub clerk"><div class="ja">🧑‍🍳 店員</div><div class="en" style="font-size:17px">${m.text||"…"}</div></div>`}).join("");
+  scrollTo(0,document.body.scrollHeight);
+}
+function vItem(id,who,text){
+  if(!V.items[id]){V.items[id]={who,text:""};V.order.push(id)}
+  if(text!==undefined)V.items[id].text=text;
+  vRender();
+}
+let vSeq=0;
+function vEvent(ev){
+  switch(ev.type){
+    case "conversation.item.added":
+    case "conversation.item.created":{
+      const it=ev.item;if(it&&it.id&&(it.role==="user"||it.role==="assistant"))vItem(it.id,it.role==="user"?"you":"clerk");break}
+    case "input_audio_buffer.speech_started":vStatus("🎙 聞いています…");break;
+    case "input_audio_buffer.speech_stopped":vStatus("店員が考え中…");break;
+    case "conversation.item.input_audio_transcription.completed":
+      if(ev.item_id)vItem(ev.item_id,"you",ev.transcript.trim());break;
+    case "response.output_audio_transcript.delta":
+    case "response.audio_transcript.delta":
+      if(ev.item_id){const m=V.items[ev.item_id];vItem(ev.item_id,"clerk",((m&&m.text)||"")+ev.delta);vStatus("店員が話しています…")}break;
+    case "response.output_audio_transcript.done":
+    case "response.audio_transcript.done":
+      if(ev.item_id)vItem(ev.item_id,"clerk",ev.transcript.trim());break;
+    case "response.done":vStatus("あなたの番です 🎤");break;
+    case "error":vStatus("エラー: "+(ev.error&&ev.error.message||"不明"));break;
   }
-  const text=`Burger Order 会話ログ  ${new Date().toLocaleString("ja-JP")}\n`+"=".repeat(40)+"\n\n"+
-    V.log.map(l=>l.who==="you"
-      ?`[You]    ${l.en}`+(l.file?`\n         🎙 ${l.file}`:"")
-      :`[Clerk]  ${l.en}\n         ${l.ja||""}`+(l.fb?`\n         💡 ${l.fb}`:"")).join("\n\n")+"\n";
+}
+function startRec(name,stream){
+  if(!window.MediaRecorder)return;
+  try{
+    const mr=new MediaRecorder(stream);V.chunks[name]=[];
+    mr.ondataavailable=e=>e.data.size&&V.chunks[name].push(e.data);
+    mr.start(1000);V.recs[name]=mr;
+  }catch(_){}
+}
+function vStop(){
+  Object.values(V.recs).forEach(mr=>{try{mr.state!=="inactive"&&mr.stop()}catch(_){}});
+  try{V.dc&&V.dc.close()}catch(_){}
+  try{V.pc&&V.pc.close()}catch(_){}
+  V.mic&&V.mic.getTracks().forEach(t=>t.stop());
+  if(V.audio){V.audio.srcObject=null}
+  V.pc=V.dc=V.mic=null;V.on=false;$("#vMic").disabled=true;
+}
+async function vStart(){
+  vStop();V.order=[];V.items={};V.recs={};V.chunks={};$("#vLog").innerHTML="";
+  vStatus("接続中…（マイクの許可を求められたら「許可」）");
+  try{
+    const r=await fetch("/api/session",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({persona:PERSONA,level:LV,speed:SPEED_RT[SPEED],order_hint:orderHint()})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error);
+    V.mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+    const pc=V.pc=new RTCPeerConnection();
+    V.audio=V.audio||new Audio();V.audio.autoplay=true;
+    pc.ontrack=e=>{V.audio.srcObject=e.streams[0];startRec("clerk",e.streams[0])};
+    pc.addTrack(V.mic.getTracks()[0],V.mic);
+    startRec("you",V.mic);
+    const dc=V.dc=pc.createDataChannel("oai-events");
+    dc.onmessage=e=>{try{vEvent(JSON.parse(e.data))}catch(_){}};
+    dc.onopen=()=>{ // 店員から先に挨拶する
+      V.on=true;$("#vMic").disabled=false;$("#vMic").textContent="🎤";vStatus("つながりました");
+      dc.send(JSON.stringify({type:"response.create"}));
+    };
+    pc.onconnectionstatechange=()=>{if(["failed","disconnected"].includes(pc.connectionState))vStatus("接続が切れました。もう一度スタートしてください")};
+    const offer=await pc.createOffer();await pc.setLocalDescription(offer);
+    const sr=await fetch("https://api.openai.com/v1/realtime/calls",{method:"POST",body:offer.sdp,
+      headers:{Authorization:"Bearer "+d.value,"Content-Type":"application/sdp"}});
+    if(!sr.ok)throw new Error("OpenAIへの接続に失敗しました ("+sr.status+")");
+    await pc.setRemoteDescription({type:"answer",sdp:await sr.text()});
+  }catch(e){
+    vStatus(e.name==="NotAllowedError"?"マイクの使用を許可してください":"エラー: "+e.message);vStop();
+  }
+}
+async function vSave(){
+  const lines=V.order.map(id=>V.items[id]).filter(m=>m.text);
+  if(!lines.length)return vStatus("保存する会話がありません");
+  await new Promise(r=>setTimeout(r,400)); // 録音の停止処理を待つ
+  const audio=[];
+  for(const [name,label] of [["you","you"],["clerk","clerk"]]){
+    const ch=V.chunks[name];if(!ch||!ch.length)continue;
+    const mt=(V.recs[name]&&V.recs[name].mimeType)||"audio/webm";
+    const blob=new Blob(ch,{type:mt});if(!blob.size)continue;
+    const ext=mt.includes("mp4")?"m4a":mt.includes("ogg")?"ogg":"webm";
+    audio.push({name:`session-${label}.${ext}`,b64:await toB64(blob)});
+  }
+  const text=`Burger Order 会話ログ  ${new Date().toLocaleString("ja-JP")}\n`+
+    `設定: ${PERSONAS[PERSONA].label} / ${SPEEDS[SPEED].label} / ${LEVELS[LV].label}\n`+"=".repeat(40)+"\n\n"+
+    lines.map(m=>(m.who==="you"?"[You]    ":"[Clerk]  ")+m.text).join("\n\n")+"\n";
   try{
     const r=await fetch("/api/save",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text,audio})});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
-    vStatus(`💾 保存しました: ${d.file}（あなたの音声 ${d.audio}件）`);
-  }catch(e){ // サーバー保存に失敗したらブラウザのダウンロードで代替
+    vStatus(`💾 保存しました: ${d.file}（音声 ${d.audio}件）`);
+  }catch(e){
     const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));
     a.download="conversation.txt";a.click();vStatus("💾 ダウンロードしました（サーバー保存失敗: "+e.message+"）");
   }
-}
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-function vLog(cls,html){$("#vLog").insertAdjacentHTML("beforeend",html);scrollTo(0,document.body.scrollHeight)}
-function vStatus(t){$("#vStatus").textContent=t}
-function speakP(t){
-  return new Promise(res=>{
-    speechSynthesis.cancel();
-    const p=PERSONAS[PERSONA],u=new SpeechSynthesisUtterance(t);u.lang="en-US";
-    u.rate=SPEEDS[SPEED].r*p.rate;u.pitch=p.pitch;const v=pickVoice(p.gender);if(v)u.voice=v;
-    u.onend=u.onerror=res;speechSynthesis.speak(u);
-  });
 }
 function orderHint(){
   const b=Object.entries(S.cart).map(([id,q])=>`${q} x ${ALL.find(i=>i.id===id).en}`).join(", ");
   return b?`${b}; size ${S.size}; ${S.combo?"combo":"no combo"}; ${S.place==="here"?"for here":"to go"}`:"";
 }
-async function vTurn(userText,audio){
-  V.busy=true;$("#vMic").disabled=true;vStatus("店員が考え中…");
-  if(userText){
-    V.msgs.push({role:"user",content:userText});V.log.push({who:"you",en:userText,audio});
-    vLog("",`<div class="say" style="border-color:var(--accent2)"><div class="ja">あなた</div><div class="en" style="font-size:16px">${userText}</div></div>`);
-  }
-  try{
-    const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({messages:V.msgs.length?V.msgs:[{role:"user",content:"(The customer walks up to the counter.)"}],order_hint:orderHint(),level:LV,persona:PERSONA})});
-    const d=await r.json();
-    if(!r.ok)throw new Error(d.error);
-    if(!V.msgs.length)V.msgs.push({role:"user",content:"(The customer walks up to the counter.)"});
-    V.msgs.push({role:"assistant",content:JSON.stringify(d)});
-    V.log.push({who:"clerk",en:d.reply,ja:d.reply_ja,fb:d.feedback_ja});
-    vLog("",`<div class="say"><div class="ja">🧑‍🍳 店員</div><div class="en" style="font-size:17px">${d.reply}</div><div class="ja">${d.reply_ja||""}</div>${d.feedback_ja?`<div class="ja" style="color:var(--accent);margin-top:6px">💡 ${d.feedback_ja}</div>`:""}</div>`);
-    vStatus("店員が話しています…");
-    await speakP(d.reply);
-    if(d.done){V.on=false;V.busy=false;$("#vMic").disabled=true;await vSave();return}
-    V.busy=false;$("#vMic").disabled=false;vStatus("あなたの番です 🎤");
-    if($("#vAuto").checked)listen();
-  }catch(e){V.busy=false;$("#vMic").disabled=false;vStatus("エラー: "+e.message)}
-}
-function listen(){
-  if(!SR){vStatus("このブラウザは音声認識に未対応です（Chrome / Safari を使用）");return}
-  if(V.rec||V.busy)return;
-  const rec=V.rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;
-  let got=false;
-  // 音声認識と並行して、あなたの声をMediaRecorderで録音する
-  const clip={blob:null};let mr=null,chunks=[];
-  if(V.stream&&window.MediaRecorder){
-    try{
-      mr=new MediaRecorder(V.stream);
-      mr.ondataavailable=e=>e.data.size&&chunks.push(e.data);
-      mr.onstop=()=>{clip.blob=new Blob(chunks,{type:mr.mimeType})};
-      mr.start();
-    }catch(_){mr=null}
-  }
-  rec.onstart=()=>{vStatus("🎙 聞いています…英語で話してください");$("#vMic").style.background="#1a9e4a"};
-  rec.onresult=e=>{got=true;vTurn(e.results[0][0].transcript,clip)};
-  rec.onerror=e=>{vStatus(e.error==="not-allowed"?"マイクの使用を許可してください":"うまく聞き取れませんでした。もう一度🎤")};
-  rec.onend=()=>{if(mr&&mr.state!=="inactive")mr.stop();V.rec=null;$("#vMic").style.background="";if(!got&&!V.busy)vStatus("もう一度🎤を押して話してください")};
-  rec.start();
-}
-$("#vEnd").onclick=async()=>{speechSynthesis.cancel();V.rec&&V.rec.abort();V.on=false;$("#vMic").disabled=true;await vSave()};
-$("#vStart").onclick=async()=>{
-  V.msgs=[];V.log=[];$("#vLog").innerHTML="";V.on=true;
-  if(!V.stream){ // 録音用にマイクを一度だけ取得
-    try{V.stream=await navigator.mediaDevices.getUserMedia({audio:true})}
-    catch(_){vStatus("マイクが使えないため、音声の保存はできません（文字だけ保存）")}
-  }
-  vTurn("");
+$("#vStart").onclick=vStart;
+$("#vEnd").onclick=async()=>{vStop();await vSave()};
+$("#vReset").onclick=()=>{vStop();V.order=[];V.items={};V.chunks={};$("#vLog").innerHTML="";vStatus("")};
+$("#vMic").onclick=()=>{
+  if(!V.mic)return;const t=V.mic.getTracks()[0];t.enabled=!t.enabled;
+  $("#vMic").textContent=t.enabled?"🎤":"🔇";vStatus(t.enabled?"マイクをオンにしました":"マイクをオフにしました");
 };
-$("#vReset").onclick=()=>{speechSynthesis.cancel();V.rec&&V.rec.abort();V.msgs=[];V.log=[];V.busy=false;V.on=false;$("#vLog").innerHTML="";$("#vMic").disabled=true;vStatus("")};
-$("#vMic").onclick=()=>{speechSynthesis.cancel();V.rec?V.rec.stop():listen()};
 
 // ---- PWA
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});

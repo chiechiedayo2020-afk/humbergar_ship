@@ -1,11 +1,13 @@
 // 依存なしのローカルサーバー。index.html を配信し、/api/chat で Claude API を中継する。
-// 起動: ANTHROPIC_API_KEY=sk-ant-... node server.js
+// 起動: npm start（.env に OPENAI_API_KEY を書く）
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
 const PORT = process.env.PORT || 3000;
 const KEY = process.env.ANTHROPIC_API_KEY;
+const OKEY = process.env.OPENAI_API_KEY;
+const RT_MODEL = process.env.OPENAI_REALTIME_MODEL || "gpt-realtime";
 const MODEL = process.env.CLAUDE_MODEL || "claude-haiku-5-5"; // 低遅延重視
 
 const SYSTEM = `You are a friendly cashier at a burger restaurant in the United States, role-playing with a Japanese learner of English who is practicing ordering.
@@ -45,6 +47,49 @@ async function chat(body) {
   return m ? JSON.parse(m[0]) : { reply: text, reply_ja: "", feedback_ja: "", done: false };
 }
 
+// ---- 本物のspeech-to-speech: OpenAI Realtime のブラウザ用一時キーを発行する
+const RT_SYSTEM = `You are a cashier at a burger restaurant in the United States, role-playing with a Japanese learner of English who is practicing ordering.
+- Speak ONLY English, never Japanese, and never break character.
+- Keep every turn short (1-2 sentences) like a busy counter, and ask only one question at a time.
+- Follow a realistic flow: greet -> take order -> combo/size/drink -> cooking/customization -> anything else -> for here or to go -> total and payment -> name/number -> goodbye.
+- If the learner is silent, confused or unclear, rephrase the question more simply and offer choices. Always understand their intended meaning and keep going.
+- Start the conversation yourself by greeting the customer.`;
+const RT_LEVEL = {
+  5: "Learner level: Eiken Grade 5 (beginner). Use only very simple words, present tense, max 6 words per sentence, prefer yes/no or choice questions. Speak slowly and clearly.",
+  4: "Learner level: Eiken Grade 4. Use simple everyday words and short, simple sentences (max 10 words).",
+  3: "Learner level: Eiken Grade 3. Natural everyday American English, still short and clear; avoid rare words and heavy slang.",
+};
+const RT_PERSONA = {
+  bright: { voice: "marin", text: "Personality: a cheerful, upbeat young woman who is warm and energetic." },
+  polite: { voice: "cedar", text: "Personality: a polite, courteous man who speaks formally and respectfully." },
+  rude: { voice: "ash", text: "Personality: a rude, impatient, bored cashier who is curt and a bit grumpy (never offensive: no insults or bad language); still take the order correctly." },
+};
+async function session(body) {
+  if (!OKEY || !/^sk-[\x21-\x7e]+$/.test(OKEY)) throw new Error("OpenAIのAPIキーが未設定です。.env の OPENAI_API_KEY にキー（sk-...）を貼って保存し、サーバーを再起動してください");
+  const p = RT_PERSONA[body.persona] || RT_PERSONA.bright;
+  const speed = Math.min(1.5, Math.max(0.25, Number(body.speed) || 1));
+  const instructions = [RT_SYSTEM, RT_LEVEL[body.level] || RT_LEVEL[3], p.text,
+    body.order_hint ? `The learner plans to order: ${body.order_hint}. React to what they actually say.` : ""].filter(Boolean).join("\n\n");
+  const r = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${OKEY}` },
+    body: JSON.stringify({ session: {
+      type: "realtime", model: RT_MODEL, instructions, output_modalities: ["audio"],
+      audio: {
+        input: {
+          noise_reduction: { type: "near_field" },
+          transcription: { model: "gpt-4o-mini-transcribe", language: "en" },
+          turn_detection: { type: "server_vad", silence_duration_ms: 800, create_response: true, interrupt_response: true },
+        },
+        output: { voice: p.voice, speed },
+      },
+    } }),
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error?.message || "OpenAI API error");
+  return { value: data.value };
+}
+
 http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/api/chat") {
     let raw = "";
@@ -52,6 +97,19 @@ http.createServer(async (req, res) => {
     try {
       if (!KEY) throw new Error("ANTHROPIC_API_KEY が設定されていません");
       const out = await chat(JSON.parse(raw));
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(out));
+    } catch (e) {
+      res.writeHead(500, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+  if (req.method === "POST" && req.url === "/api/session") {
+    let raw = "";
+    for await (const c of req) raw += c;
+    try {
+      const out = await session(JSON.parse(raw));
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(out));
     } catch (e) {
