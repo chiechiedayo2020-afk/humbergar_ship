@@ -134,6 +134,7 @@
     <div id="judge"></div>
   </div>
   <button class="btn install" id="install">📲 このアプリをインストール</button>
+  <div class="cart" id="settings" style="position:static;margin-top:14px"></div>
   <h2>BURGERS</h2><div id="l-burger"></div>
   <h2>SIDES</h2><div id="l-side"></div>
   <h2>DRINKS</h2><div id="l-drink"></div>
@@ -243,8 +244,8 @@ function speedHTML(){
   return `<div class="ct" style="font-size:12px;color:var(--sub)">話すスピード</div><div class="chips speedbar" style="margin-bottom:10px">`+
     Object.entries(SPEEDS).map(([k,v])=>`<div class="chip ${k===SPEED?"on":""}" data-speed="${k}">${v.label}</div>`).join("")+`</div>`;
 }
-function bindSpeed(redraw){
-  document.querySelectorAll("[data-speed]").forEach(c=>c.onclick=()=>{
+function bindSpeed(root,redraw){
+  root.querySelectorAll("[data-speed]").forEach(c=>c.onclick=()=>{
     SPEED=c.dataset.speed;try{localStorage.setItem("speed",SPEED)}catch(e){}
     redraw();
   });
@@ -312,7 +313,27 @@ const CL={
     pay:()=>[`That's ${total$()}. Cash or card? I don't have all day.`,total$()+"ね。現金？カード？急いでるんだけど。"],
     end:["Here's your receipt. Next!","レシート。次の方！"]},
 };
-const L=k=>{const v=CL[PERSONA][k];return typeof v==="function"?v():v};
+// 英検レベル(5級=やさしい / 4級 / 3級=自然な言い回し)
+const LEVELS={5:{label:"英検5級",sub:"とてもやさしい"},4:{label:"英検4級",sub:"やさしい"},3:{label:"英検3級",sub:"ふつう・自然"}};
+let LV=3;
+try{const p=+localStorage.getItem("level");if(LEVELS[p])LV=p}catch(e){}
+const CLV={
+  5:{
+    bright:{greet:"Hi! What do you want?",combo:"Do you want a combo?",size:"What size? Small, medium, or large?",mods:"Do you want to change anything?",cook:"Well done or medium?",allergy:"Any allergies?",more:"Anything else?",place:"Here or to go?",pay:()=>`It's ${total$()}. Cash or card?`,end:"Here's your receipt. Bye!"},
+    polite:{greet:"Hello. Can I help you?",combo:"Would you like a combo?",size:"What size, please?",mods:"Any changes, please?",cook:"Well done or medium?",allergy:"Do you have any allergies?",more:"Anything else, please?",place:"For here or to go?",pay:()=>`It is ${total$()}. Cash or card?`,end:"Thank you. Goodbye."},
+    rude:{greet:"What do you want?",combo:"Combo? Yes or no?",size:"Size? Small, medium, large?",mods:"Any changes? Hurry up.",cook:"Cooked how?",allergy:"Allergies? Yes or no?",more:"Anything else?",place:"Here or to go?",pay:()=>`${total$()}. Cash or card?`,end:"Here. Next!"}},
+  4:{
+    bright:{greet:"Hi! Welcome! What would you like?",combo:"Do you want to make it a combo?",size:"What size would you like?",mods:"Do you want to change anything?",cook:"How do you want your burger cooked?",allergy:"Do you have any allergies?",more:"Do you want anything else?",place:"Is it for here or to go?",pay:()=>`Your total is ${total$()}. Cash or card?`,end:"Here's your receipt. Have a nice day!"},
+    polite:{greet:"Hello. May I take your order?",combo:"Would you like to make it a combo?",size:"What size would you like?",mods:"Would you like to change anything?",cook:"How would you like your burger cooked?",allergy:"Do you have any food allergies?",more:"Would you like anything else?",place:"Is that for here or to go?",pay:()=>`Your total is ${total$()}. Cash or card?`,end:"Here is your receipt. Have a nice day."},
+    rude:{greet:"Next. What do you want?",combo:"Do you want a combo or not?",size:"What size? Hurry up.",mods:"Do you want to change anything? Be quick.",cook:"How do you want it cooked?",allergy:"Do you have allergies? Tell me now.",more:"Is that all? People are waiting.",place:"For here or to go?",pay:()=>`That's ${total$()}. Cash or card?`,end:"Here's your receipt. Next!"}},
+};
+const L=k=>{
+  const v=CL[PERSONA][k],base=typeof v==="function"?v():v;
+  const o=CLV[LV]&&CLV[LV][PERSONA][k];
+  return o?[typeof o==="function"?o():o,base[1]]:base;
+};
+// あなたのセリフもレベルで変える: [5級, 4級, 3級]
+const U=(a,b,c)=>LV===5?a:LV===4?b:c;
 
 // ---- tabs
 function tab(n){
@@ -326,8 +347,27 @@ $("#goSay").onclick=()=>startPractice();
 
 function startPractice(){P.n=0;P.heard={};tab("say");const st=steps();if(st)clerkSpeak(st[0].c[0])}
 // ---- menu
+function renderSettings(){
+  $("#settings").innerHTML=`<div style="font-weight:700;margin-bottom:6px">⚙ 設定（会話練習・AI練習で使います）</div>
+    <div class="ct">店員さんのタイプ</div><div class="chips" id="persona" style="margin-bottom:10px">`+
+    Object.entries(PERSONAS).map(([k,p])=>`<div class="chip ${k===PERSONA?"on":""}" data-persona="${k}">${p.label}</div>`).join("")+`</div>`+
+    speedHTML()+
+    `<div class="ct">英語のレベル</div><div class="chips">`+
+    Object.entries(LEVELS).map(([k,v])=>`<div class="chip ${+k===LV?"on":""}" data-level="${k}">${v.label}<small>${v.sub}</small></div>`).join("")+`</div>`;
+  const root=$("#settings");
+  root.querySelectorAll("[data-persona]").forEach(c=>c.onclick=()=>{
+    PERSONA=c.dataset.persona;try{localStorage.setItem("persona",PERSONA)}catch(e){}
+    renderSettings();clerkSpeak(L("greet")[0]);
+  });
+  bindSpeed(root,()=>{renderSettings();renderWordsSpeed();clerkSpeak(L("greet")[0])});
+  root.querySelectorAll("[data-level]").forEach(c=>c.onclick=()=>{
+    LV=+c.dataset.level;try{localStorage.setItem("level",LV)}catch(e){}
+    renderSettings();clerkSpeak(L("greet")[0]);
+  });
+}
 function renderMenu(){
   $("#goPractice").onclick=startPractice;
+  renderSettings();
   for(const k in MENU){
     $("#l-"+k).innerHTML=MENU[k].map(i=>`
       <div class="item ${S.cart[i.id]?"ordered":""}"><div class="emo">${i.e}</div>
@@ -403,16 +443,16 @@ function steps(){
   const hasB=items.some(x=>MENU.burger.includes(x.i)),hasD=items.some(x=>MENU.drink.includes(x.i));
   const parts=items.map(x=>nameQ(x.i,x.q));
   const joined=parts.length>1?parts.slice(0,-1).join(", ")+" and "+parts.at(-1):parts[0];
-  const st=[{c:L("greet"),y:[`Hi! Can I get ${joined}, please?`,items.map(x=>`${x.i.ja}×${x.q}`).join("、")+" をください"]}];
-  if(hasB)st.push({c:L("combo"),y:S.combo?["Yes, make it a combo, please.","はい、セットでお願いします"]:["No, just the burger is fine, thanks.","いえ、バーガーだけで大丈夫です"]});
-  if(S.combo||hasD)st.push({c:L("size"),y:[`${sizeEn()} is fine.`,"サイズを伝えます"]});
+  const st=[{c:L("greet"),y:[U(`${cap(joined)}, please.`,`I want ${joined}, please.`,`Hi! Can I get ${joined}, please?`),items.map(x=>`${x.i.ja}×${x.q}`).join("、")+" をください"]}];
+  if(hasB)st.push({c:L("combo"),y:S.combo?[U("Yes, please.","Yes, a combo, please.","Yes, make it a combo, please."),"はい、セットでお願いします"]:[U("No, thank you.","No, just the burger.","No, just the burger is fine, thanks."),"いえ、バーガーだけで大丈夫です"]});
+  if(S.combo||hasD)st.push({c:L("size"),y:[U(`${sizeEn()}, please.`,`${sizeEn()}, please.`,`${sizeEn()} is fine.`),"サイズを伝えます"]});
   if(hasB&&S.mods.size){const m=[...S.mods];st.push({c:L("mods"),y:[cap(m.join(", "))+", please.",m.map(x=>MODS.find(y=>y[0]===x)[1]).join("、")]})}
   if(hasB&&S.cook)st.push({c:L("cook"),y:[cap(S.cook)+", please.",COOK.find(c=>c[0]===S.cook)[1]+"でお願いします"]});
-  if(S.allergy)st.push({c:L("allergy"),y:[`I have ${S.allergy}. Is this okay?`,ALLERGY.find(a=>a[0]===S.allergy)[1]+"アレルギーがあります。大丈夫ですか？"]});
-  st.push({c:L("more"),y:["That's it, thanks.","以上です"]});
+  if(S.allergy)st.push({c:L("allergy"),y:[U(`I have ${S.allergy}.`,`I have ${S.allergy}. Is this OK?`,`I have ${S.allergy}. Is this okay?`),ALLERGY.find(a=>a[0]===S.allergy)[1]+"アレルギーがあります。大丈夫ですか？"]});
+  st.push({c:L("more"),y:[U("No, thank you.","That's all, thank you.","That's it, thanks."),"以上です"]});
   st.push({c:L("place"),y:S.place==="here"?["For here, please.","店内で"]:["To go, please.","持ち帰りで"]});
   st.push({c:L("pay"),y:["Card, please.","カードで"]});
-  st.push({c:L("end"),y:["Thanks, you too!","ありがとう、あなたも！"]});
+  st.push({c:L("end"),y:[U("Thank you!","Thank you. Bye!","Thanks, you too!"),"ありがとう（お礼を言って終わり）"]});
   return st;
 }
 const P={n:0,heard:{}};
@@ -423,8 +463,7 @@ function renderSay(){
   const st=steps();
   if(!st){$("#out").innerHTML='<div class="empty">まず「① メニュー」で注文したいものを選んでください</div>';return}
   if(P.n>=st.length)P.n=st.length-1;
-  let h=`<div class="ct" style="font-size:12px;color:var(--sub)">店員さんのタイプ</div><div class="chips" id="persona" style="margin-bottom:10px">`+
-    Object.entries(PERSONAS).map(([k,p])=>`<div class="chip ${k===PERSONA?"on":""}" data-persona="${k}">${p.label}</div>`).join("")+`</div>`+speedHTML()+cartHTML();
+  let h=`<div class="ct" style="font-size:12px;color:var(--sub);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span>${PERSONAS[PERSONA].label} ・ ${SPEEDS[SPEED].label} ・ ${LEVELS[LV].label}</span><button class="btn ghost" id="pSet" style="padding:4px 10px;font-size:12px">⚙ 設定を変える</button></div>`+cartHTML();
   for(let k=0;k<=P.n;k++){
     const s=st[k],cur=k===P.n,heard=P.heard[k];
     h+=`<div class="bub clerk"><div class="en">🧑‍🍳 ${s.c[0]}</div><div class="ja">${s.c[1]}</div>
@@ -437,11 +476,7 @@ function renderSay(){
     (P.n<st.length-1?`<button class="btn" id="pNext">次へ ▶</button>`:`<div class="judge ok" style="width:100%"><b>🎉 おつかれさま！</b><br>最後まで練習できました。</div>`)+
     `<button class="btn ghost" id="pReset">最初から</button><button class="btn ghost" id="pBack">← メニューへ</button></div>`+judgeHTML();
   $("#out").innerHTML=h;
-  bindSpeed(()=>{renderSay();clerkSpeak(steps()[P.n].c[0])});
-  document.querySelectorAll("[data-persona]").forEach(c=>c.onclick=()=>{
-    PERSONA=c.dataset.persona;try{localStorage.setItem("persona",PERSONA)}catch(e){}
-    renderSay();clerkSpeak(steps()[P.n].c[0]);
-  });
+  $("#pSet").onclick=()=>{tab("menu");$("#settings").scrollIntoView()};
   document.querySelectorAll("[data-pc]").forEach(b=>b.onclick=()=>clerkSpeak(st[b.dataset.pc].c[0]));
   document.querySelectorAll("[data-py]").forEach(b=>b.onclick=()=>speak(st[b.dataset.py].y[0]));
   document.querySelectorAll("[data-pm]").forEach(b=>b.onclick=()=>listenFor(+b.dataset.pm,st));
@@ -544,8 +579,12 @@ const DLG=[
     ["y","Can I get some napkins?","ナプキンをもらえますか?"],
     ["y","I have a peanut allergy.","ピーナッツアレルギーがあります"]]},
 ];
+function renderWordsSpeed(){
+  $("#wSpeed").innerHTML=speedHTML();
+  bindSpeed($("#wSpeed"),()=>{renderWordsSpeed();renderSettings();speak("Hello, can I get a cheeseburger, please?")});
+}
 function renderWords(){
-  $("#wSpeed").innerHTML=speedHTML();bindSpeed(()=>{renderWords();speak("Hello, can I get a cheeseburger, please?")});
+  renderWordsSpeed();
   $("#wordList").innerHTML=WORDS.map((g,gi)=>`<h2>${g[0]}</h2><div class="wd">${g[1].map((w,wi)=>`<button data-w="${gi}-${wi}">🔊 ${w[0]}<small>${w[1]}</small></button>`).join("")}</div>`).join("");
   document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{const[g,w]=b.dataset.w.split("-");speak(WORDS[g][1][w][0])});
   $("#dlgList").innerHTML=DLG.map((d,di)=>`<div class="dlg"><h3>${d.t}</h3>${d.l.map((x,li)=>`
@@ -589,7 +628,8 @@ function vStatus(t){$("#vStatus").textContent=t}
 function speakP(t){
   return new Promise(res=>{
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(t);u.lang="en-US";u.rate=.8;
+    const p=PERSONAS[PERSONA],u=new SpeechSynthesisUtterance(t);u.lang="en-US";
+    u.rate=SPEEDS[SPEED].r*p.rate;u.pitch=p.pitch;const v=pickVoice(p.gender);if(v)u.voice=v;
     u.onend=u.onerror=res;speechSynthesis.speak(u);
   });
 }
@@ -605,7 +645,7 @@ async function vTurn(userText,audio){
   }
   try{
     const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({messages:V.msgs.length?V.msgs:[{role:"user",content:"(The customer walks up to the counter.)"}],order_hint:orderHint()})});
+      body:JSON.stringify({messages:V.msgs.length?V.msgs:[{role:"user",content:"(The customer walks up to the counter.)"}],order_hint:orderHint(),level:LV,persona:PERSONA})});
     const d=await r.json();
     if(!r.ok)throw new Error(d.error);
     if(!V.msgs.length)V.msgs.push({role:"user",content:"(The customer walks up to the counter.)"});

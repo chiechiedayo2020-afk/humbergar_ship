@@ -22,7 +22,17 @@ Respond ONLY with a JSON object, no other text:
 
 async function chat(body) {
   const messages = body.messages;
-  const system = SYSTEM + (body.order_hint ? `\n\norder_hint: ${body.order_hint}` : "");
+  const LEVEL = {
+    5: "Learner level: Eiken Grade 5 (beginner). Use only very simple words, present tense, max 6 words per sentence, prefer yes/no or choice questions.",
+    4: "Learner level: Eiken Grade 4. Use simple everyday words and short, simple sentences (max 10 words).",
+    3: "Learner level: Eiken Grade 3. Natural everyday American English, still short and clear; avoid rare words and heavy slang.",
+  }[body.level] || "";
+  const PERSONA = {
+    bright: "Personality: a cheerful, upbeat young woman who is warm and energetic.",
+    polite: "Personality: a polite, courteous man who speaks formally and respectfully.",
+    rude: "Personality: a rude, impatient, bored cashier who is curt and a bit grumpy (never offensive, no insults or bad language); still take the order correctly.",
+  }[body.persona] || "";
+  const system = SYSTEM + (LEVEL ? `\n\n${LEVEL} This overrides any other level rule above.` : "") + (PERSONA ? `\n${PERSONA}` : "") + (body.order_hint ? `\n\norder_hint: ${body.order_hint}` : "");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": KEY, "anthropic-version": "2023-06-01" },
