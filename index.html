@@ -47,6 +47,13 @@
   .bill .tot{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;font-weight:700;font-size:17px;color:var(--accent)}
   .qty{display:flex;align-items:center;gap:8px}
   .qty button{width:32px;height:32px;border-radius:50%;border:1px solid var(--accent);background:#fff;color:var(--accent);font-size:18px;font-weight:700}
+  .stk{border:2px dashed var(--accent2);border-radius:12px;padding:10px 12px;margin:10px 0;background:#fffbea}
+  .stk .cards{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .stk.off .card{opacity:.45;cursor:default}
+  .stk .card{flex:1;min-width:90px;text-align:center;border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 4px;cursor:pointer;font-weight:700}
+  .stk .card .big{font-size:34px}
+  .stk .card small{display:block;font-size:11px;font-weight:400;color:var(--sub)}
+  .stk .card.on{border-color:var(--accent);background:#fff3ee}
   .szs{display:flex;gap:4px;margin-top:4px}
   .sz{border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink)}
   .sz small{display:block;font-size:10px;font-weight:400;color:var(--sub)}
@@ -164,6 +171,7 @@
     <h2>SIDES</h2><div id="l-side"></div>
     <h2>DRINKS</h2><div id="l-drink"></div>
     <h2>TOPPINGS</h2><div id="l-topping"></div>
+    <h2>STICKERS</h2><div id="sticker"></div>
   </div>
 </section>
 
@@ -242,7 +250,7 @@ const MODS=[
 const COOK=[["","おまかせ"],["well done","ウェルダン"],["medium","ミディアム"]];
 const ALLERGY=[["","なし"],["a peanut allergy","ピーナッツ"],["a gluten allergy","グルテン"],["a dairy allergy","乳製品"],["an egg allergy","卵"]];
 
-const S={cart:{},sizes:{},combo:false,mods:new Set(),cook:"",place:"here",allergy:""};
+const S={cart:{},sizes:{},sticker:"",combo:false,mods:new Set(),cook:"",place:"here",allergy:""};
 const $=s=>document.querySelector(s);
 // サイズ(サイドとドリンクだけ)。中が基本の値段で、小は−$0.50、大は+$0.75
 const SZ=[["small","小","S",-.5],["medium","中","M",0],["large","大","L",.75]];
@@ -413,11 +421,38 @@ function judge(){
   return {cls:"ok",html:`<b>✅ ミッション成功！</b><br>3人分（バーガー${b}・ドリンク${d}）で $${t.toFixed(2)}。残り $${left.toFixed(2)}${note}`};
 }
 function judgeHTML(){const j=judge();return `<div class="judge ${j.cls}">${j.html}</div>`}
+// ---- シール: $40以上のお買い上げで1枚(3つから選ぶ)
+const STICKER_MIN=40;
+const STICKERS=[["burger","🍔","Happy Burger"],["fries","🍟","Smiling Fries"],["shake","🥤","Cool Shake"]];
+function renderSticker(){
+  const t=total(),el=$("#sticker"),ok=t>=STICKER_MIN;
+  if(!ok)S.sticker="";
+  el.innerHTML=`<div class="stk ${ok?"":"off"}"><b>🎁 Free sticker with orders of $${STICKER_MIN} or more</b>
+    <div style="font-size:12px;color:var(--sub)">${ok?"You get ONE sticker! Choose 1 of 3.":"Add $"+(STICKER_MIN-t).toFixed(2)+" more to get one."}</div><div class="cards">`+
+    STICKERS.map(z=>`<div class="card ${S.sticker===z[0]?"on":""}" data-stk="${z[0]}"><div class="big">${z[1]}</div>${z[2]}<small>${S.sticker===z[0]?"✅ Your pick":""}</small></div>`).join("")+`</div></div>`;
+  el.querySelectorAll("[data-stk]").forEach(c=>c.onclick=()=>{
+    if(!ok)return;
+    S.sticker=c.dataset.stk;renderSticker();
+    vTell(`The customer picked the ${STICKERS.find(z=>z[0]===S.sticker)[2]} sticker.`);
+  });
+}
+// 会話の途中で注文や合計が変わったら、AI店員にも知らせる(返事はさせない)
+let lastSync="";
+function vSync(){
+  const t=total().toFixed(2),sig=orderHint()+"|"+t;
+  if(sig===lastSync)return;lastSync=sig;
+  vTell(`Order update: the customer's current order is: ${orderHint()||"nothing yet"}. Current subtotal before tax: $${t}. ${total()>=STICKER_MIN?"The customer qualifies for ONE free sticker.":"The customer does NOT qualify for the sticker."}`);
+}
+function vTell(text){
+  if(!V.dc||V.dc.readyState!=="open")return;
+  V.dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"message",role:"system",content:[{type:"input_text",text}]}}));
+}
 function renderSum(){
   const n=Object.values(S.cart).reduce((a,b)=>a+b,0);
   const t=total();
   $("#sum").innerHTML=n?`${n}点 ・ 税別<b>合計 $${t.toFixed(2)}</b><span style="font-size:12px">残り $${(BUDGET-t).toFixed(2)}</span>`:"カートは空です";
   $("#judge").innerHTML=judgeHTML();
+  renderSticker();vSync();
 }
 // ---- chips
 function chips(el,items,isOn,onClick){
@@ -635,7 +670,7 @@ async function vSave(){
 }
 function orderHint(){
   const b=Object.entries(S.cart).map(([id,q])=>{const i=ALL.find(x=>x.id===id);return `${q} x ${isSized(i)?sizeOf(id)+" ":""}${i.en}`}).join(", ");
-  return b?`${b}; ${S.combo?"combo":"no combo"}; ${S.place==="here"?"for here":"to go"}`:"";
+  return b?`${b}; ${S.combo?"combo":"no combo"}; ${S.place==="here"?"for here":"to go"}; subtotal $${total().toFixed(2)}`:"";
 }
 $("#vStart").onclick=vStart;
 $("#vEnd").onclick=async()=>{vStop();V.show=true;vRender();await vSave()};
